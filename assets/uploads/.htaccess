@@ -1,0 +1,43 @@
+# Secure Assets Upload Directory
+# Disables PHP and executable script execution and allows only safe image formats
+
+# 1. Disable PHP engine if mod_php is loaded
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# 2. Remove script handlers
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .phps .cgi .pl .py .sh
+SetHandler default-handler
+
+# 3. Deny execution and access to all PHP and script extensions
+<FilesMatch "(?i)\.(php|phtml|phar|php[0-9]|phps|cgi|pl|py|sh|bash|exe|bat|cmd|inc)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 4. Only allow safe image file formats
+<FilesMatch "(?i)\.(jpg|jpeg|png|gif|webp|svg|ico)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# 5. Disable directory indexing
+Options -Indexes -ExecCGI
+

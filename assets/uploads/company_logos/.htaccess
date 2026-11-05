@@ -1,0 +1,4 @@
+# Secure upload directory: Disable PHP script execution
+<FilesMatch "\.(php|phtml|php[34578]|phps|pl|py|cgi|sh|bash)$">
+    Require all denied
+</FilesMatch>

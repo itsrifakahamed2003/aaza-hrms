@@ -1,0 +1,85 @@
+# ============================================================
+# AaZa HRMS - Apache Web Server Production Configuration
+# ============================================================
+
+# 1. Disable directory listing
+Options -Indexes
+
+# 2. Set default character encoding
+AddDefaultCharset UTF-8
+
+# 3. Default index routing
+DirectoryIndex public/index.php public/login.php index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Optional HTTPS Redirection:
+    # Uncomment the two lines below if your hosting or SSL certificate does not automatically redirect HTTP to HTTPS:
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Block direct web access to internal, sensitive, or tooling directories
+    RewriteRule ^(config|includes|database|storage|docs|tests|bin|tools|\.git)($|/) - [F,L]
+
+    # Block sensitive file extensions (database dumps, markdown, logs, locks, backups)
+    RewriteRule \.(sql|log|md|lock|bak|env|ini|sh)$ - [F,L]
+
+    # Root route: forward root domain request to public/index.php
+    RewriteRule ^$ public/index.php [L]
+</IfModule>
+
+# Fallback FilesMatch block for environments where mod_rewrite is disabled or bypassed
+<FilesMatch "(?i)\.(sql|log|md|lock|bak|env|ini|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 4. Gzip / Deflate Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# 5. Asset Caching & Expiry
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    # Vendor fonts (immutable for 1 year)
+    <FilesMatch "\.(woff2?|ttf|eot|otf)$">
+        ExpiresDefault "access plus 1 year"
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Static images and icons (1 month)
+    <FilesMatch "\.(png|jpe?g|gif|svg|ico|webp)$">
+        ExpiresDefault "access plus 1 month"
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+
+    # Custom CSS & JS (1 week with must-revalidate; query param ?v= breaks cache immediately)
+    <FilesMatch "\.(css|js)$">
+        ExpiresDefault "access plus 1 week"
+        Header set Cache-Control "public, max-age=604800, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# 6. Friendly Fallback Error Documents
+ErrorDocument 403 /public/403.php
+ErrorDocument 404 /public/404.php
+ErrorDocument 500 /public/500.php

@@ -1,0 +1,314 @@
+/**
+ * AaZa HRMS - Calm Office Design Tokens (assets/css/tokens.css)
+ * Office Software Design System: Compact, calm, high-contrast, single accent.
+ */
+
+:root,
+[data-bs-theme="light"] {
+  color-scheme: light;
+
+  /* Single Accent Palette */
+  --accent: #2563EB;
+  --accent-rgb: 37, 99, 235;
+  --accent-hover: #1D4ED8;
+  --accent-active: #1E40AF;
+  --accent-tint: rgba(37, 99, 235, 0.10);
+  --brand-primary: var(--accent);
+  --brand-primary-rgb: var(--accent-rgb);
+  --brand-primary-hover: var(--accent-hover);
+  --brand-primary-active: var(--accent-active);
+  --brand-primary-tint: var(--accent-tint);
+  --primary: var(--accent);
+  --primary-rgb: var(--accent-rgb);
+  --primary-hover: var(--accent-hover);
+  --primary-active: var(--accent-active);
+  --primary-light: var(--accent-tint);
+  --primary-border: var(--accent);
+
+  /* Neutrals Light */
+  --page-bg: #F8FAFC;
+  --bg-body: var(--page-bg);
+  --surface: #FFFFFF;
+  --surface-bg: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-hover: #F1F5F9;
+  --bg-surface-secondary: #F1F5F9;
+  --hover-bg: #F1F5F9;
+  --border: #E2E8F0;
+  --border-color: #E2E8F0;
+  --border-subtle: #F1F5F9;
+
+  /* Text Light (High Contrast >= 4.5:1) */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+
+  /* Sidebar Tokens (LIGHT surface in light mode, NO dark navy block) */
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #E2E8F0;
+  --sidebar-text: #0F172A;
+  --sidebar-muted: #64748B;
+  --sidebar-hover-bg: #F1F5F9;
+  --sidebar-active-bg: rgba(37, 99, 235, 0.10);
+  --sidebar-active-text: #2563EB;
+
+  /* Topbar Tokens */
+  --topbar-bg: #FFFFFF;
+  --topbar-border: #E2E8F0;
+
+  /* Semantic Feedback (Badges & Alerts Only - Never Decorative) */
+  --success: #10B981;
+  --success-color: #10B981;
+  --success-rgb: 16, 185, 129;
+  --success-tint: rgba(16, 185, 129, 0.10);
+  --success-text: #065F46;
+
+  --warning: #F59E0B;
+  --warning-color: #F59E0B;
+  --warning-rgb: 245, 158, 11;
+  --warning-tint: rgba(245, 158, 11, 0.12);
+  --warning-text: #92400E;
+
+  --danger: #EF4444;
+  --danger-color: #EF4444;
+  --danger-rgb: 239, 68, 68;
+  --danger-tint: rgba(239, 68, 68, 0.10);
+  --danger-text: #991B1B;
+
+  --info: #3B82F6;
+  --info-color: #3B82F6;
+  --info-rgb: 59, 130, 246;
+  --info-tint: rgba(59, 130, 246, 0.10);
+  --info-text: #1E40AF;
+
+  /* Chart Cohesive Palette (Accent + 3 Neutral Companions) */
+  --chart-color-1: #2563EB;
+  --chart-color-2: #64748B;
+  --chart-color-3: #94A3B8;
+  --chart-color-4: #CBD5E1;
+
+  /* Shadows - None or Very Subtle */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Bootstrap Variable Overrides */
+  --bs-body-bg: var(--page-bg);
+  --bs-body-color: var(--text-primary);
+  --bs-secondary-color: var(--text-muted);
+  --bs-border-color: var(--border);
+  --bs-primary: var(--accent);
+  --bs-primary-rgb: var(--accent-rgb);
+  --bs-link-color: var(--accent);
+  --bs-link-hover-color: var(--accent-hover);
+  --bs-card-bg: var(--surface);
+  --bs-card-border-color: var(--border);
+  --bs-card-box-shadow: var(--shadow-card);
+  --bs-tertiary-bg: var(--surface-hover);
+}
+
+[data-bs-theme="dark"] {
+  color-scheme: dark;
+
+  /* Single Accent Palette (Dark Mode) */
+  --accent: #3B82F6;
+  --accent-rgb: 59, 130, 246;
+  --accent-hover: #60A5FA;
+  --accent-active: #2563EB;
+  --accent-tint: rgba(59, 130, 246, 0.15);
+  --brand-primary: var(--accent);
+  --brand-primary-rgb: var(--accent-rgb);
+  --brand-primary-hover: var(--accent-hover);
+  --brand-primary-active: var(--accent-active);
+  --brand-primary-tint: var(--accent-tint);
+  --primary: var(--accent);
+  --primary-rgb: var(--accent-rgb);
+  --primary-hover: var(--accent-hover);
+  --primary-active: var(--accent-active);
+  --primary-light: var(--accent-tint);
+  --primary-border: var(--accent);
+
+  /* Neutrals Dark */
+  --page-bg: #0B0F17;
+  --bg-body: var(--page-bg);
+  --surface: #131923;
+  --surface-bg: #131923;
+  --bg-surface: #131923;
+  --surface-raised: #1A2230;
+  --surface-hover: #1A2230;
+  --bg-surface-secondary: #1A2230;
+  --hover-bg: #1A2230;
+  --border: #232D3F;
+  --border-color: #232D3F;
+  --border-subtle: #1A2230;
+
+  /* Text Dark (High Contrast >= 4.5:1) */
+  --text-primary: #F1F5F9;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  /* Sidebar Tokens (Dark surface in dark mode) */
+  --sidebar-bg: #131923;
+  --sidebar-border: #232D3F;
+  --sidebar-text: #F1F5F9;
+  --sidebar-muted: #94A3B8;
+  --sidebar-hover-bg: #1A2230;
+  --sidebar-active-bg: rgba(59, 130, 246, 0.15);
+  --sidebar-active-text: #3B82F6;
+
+  /* Topbar Tokens */
+  --topbar-bg: #131923;
+  --topbar-border: #232D3F;
+
+  /* Semantic Feedback (Dark Mode) */
+  --success: #34D399;
+  --success-color: #34D399;
+  --success-rgb: 52, 211, 153;
+  --success-tint: rgba(52, 211, 153, 0.15);
+  --success-text: #6EE7B7;
+
+  --warning: #FBBF24;
+  --warning-color: #FBBF24;
+  --warning-rgb: 251, 191, 36;
+  --warning-tint: rgba(251, 191, 36, 0.15);
+  --warning-text: #FDE68A;
+
+  --danger: #F87171;
+  --danger-color: #F87171;
+  --danger-rgb: 248, 113, 113;
+  --danger-tint: rgba(248, 113, 113, 0.15);
+  --danger-text: #FCA5A5;
+
+  --info: #60A5FA;
+  --info-color: #60A5FA;
+  --info-rgb: 96, 165, 250;
+  --info-tint: rgba(96, 165, 250, 0.15);
+  --info-text: #93C5FD;
+
+  /* Chart Cohesive Palette (Dark Mode) */
+  --chart-color-1: #3B82F6;
+  --chart-color-2: #94A3B8;
+  --chart-color-3: #64748B;
+  --chart-color-4: #475569;
+
+  /* Shadows (Dark Mode) */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.50);
+
+  /* Bootstrap Variable Overrides */
+  --bs-body-bg: var(--page-bg);
+  --bs-body-color: var(--text-primary);
+  --bs-secondary-color: var(--text-muted);
+  --bs-border-color: var(--border);
+  --bs-primary: var(--accent);
+  --bs-primary-rgb: var(--accent-rgb);
+  --bs-link-color: var(--accent);
+  --bs-link-hover-color: var(--accent-hover);
+  --bs-card-bg: var(--surface);
+  --bs-card-border-color: var(--border);
+  --bs-card-box-shadow: var(--shadow-card);
+  --bs-tertiary-bg: var(--surface-hover);
+}
+
+:root {
+  /* Layout Constraints */
+  --sidebar-width: 232px;
+  --sidebar-collapsed-width: 64px;
+  --topbar-height: 56px;
+  --content-max-width: 1600px;
+
+  /* Typography Scale */
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --bs-body-font-family: var(--font-family-base);
+  --font-size-base: 14px;
+  --font-size-sm: 12.5px;
+  --font-size-xs: 11px;
+  --font-size-h1: 22px;
+  --font-size-card-title: 14px;
+  --line-height-base: 1.5;
+
+  /* Radii: 8px cards, 6px controls */
+  --radius-card: 8px;
+  --radius-base: 8px;
+  --radius-control: 6px;
+  --radius-sm: 6px;
+  --radius-badge: 999px;
+  --bs-border-radius: var(--radius-card);
+  --bs-border-radius-sm: var(--radius-control);
+
+  /* Transitions: 150ms hover/focus, 200ms collapse/dropdowns */
+  --transition-hover: 150ms ease;
+  --transition-fast: 150ms ease;
+  --transition-drawer: 200ms ease;
+  --transition-base: 200ms ease;
+}
+
+/* Base Document Styles */
+html, body {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  background-color: var(--page-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Hierarchy */
+h1, .h1 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+h2, .h2 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+h3, .h3, h4, .h4, h5, .h5, h6, .h6 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+/* Sentence-case muted labels */
+.form-label,
+.filter-label,
+.stat-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Accessible Focus Ring */
+:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

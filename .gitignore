@@ -1,0 +1,50 @@
+# Environment and database configuration with secrets
+config/config.php
+config/database.php
+
+# Storage runtime logs and locks
+storage/logs/*
+!storage/logs/.gitkeep
+storage/installed.lock
+storage/backups/*
+!storage/backups/.gitkeep
+
+# Storage uploads (keep structure & protection)
+storage/uploads/*
+!storage/uploads/.gitkeep
+!storage/uploads/.htaccess
+!storage/uploads/employees/
+storage/uploads/employees/*
+!storage/uploads/employees/.gitkeep
+!storage/uploads/candidates/
+storage/uploads/candidates/*
+!storage/uploads/candidates/.gitkeep
+!storage/uploads/leave/
+storage/uploads/leave/*
+!storage/uploads/leave/.gitkeep
+
+# Operating system & editor files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.swp
+.idea/
+.vscode/
+
+# Test evidence, verification screenshots & scripts
+polish_screenshots/
+screenshots/
+verification_screenshots*/
+test_leave_light_before.png
+capture_*.py
+verify_*.py
+test_leave_view.py
+test_sidebar_scroll.py
+test_*.py
+scratch/
+
+# Build & Release distribution archives
+dist/
+*.zip
+
