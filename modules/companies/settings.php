@@ -222,8 +222,8 @@ require_once __DIR__ . '/../../includes/header.php';
             <li class="breadcrumb-item active" aria-current="page">Settings</li>
         </ol>
     </nav>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="d-flex align-items-center gap-3">
+    <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="page-header-title-block d-flex align-items-center gap-3">
             <?= company_logo_html($company, $company['name'], 'lg', 'shadow-sm') ?>
             <div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -235,7 +235,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
         </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
+        <div class="page-actions d-flex gap-2 align-items-center flex-wrap">
             <a href="<?= e(url('modules/companies/view.php?id=' . $companyId)) ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Company Profile
             </a>
@@ -263,6 +263,24 @@ require_once __DIR__ . '/../../includes/header.php';
                 <li><?= e($err) ?></li>
             <?php endforeach; ?>
         </ul>
+    </div>
+<?php endif; ?>
+
+<?php if (is_group_admin()): ?>
+    <?php
+    $mailConfigured = mail_is_configured();
+    $mailDriverLabel = (strtolower(trim((string)(defined('MAIL_DRIVER') ? MAIL_DRIVER : 'none'))) === 'phpmail') ? 'PHP mail' : 'SMTP';
+    ?>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2 mb-3 rounded border bg-body-tertiary small">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-envelope-check <?= $mailConfigured ? 'text-success' : 'text-secondary' ?>"></i>
+            <?php if ($mailConfigured): ?>
+                <span class="fw-semibold text-body">Email: Configured (<?= e($mailDriverLabel) ?>)</span>
+            <?php else: ?>
+                <span class="fw-semibold text-body">Email: Not configured - candidates are contacted via your mail app</span>
+            <?php endif; ?>
+        </div>
+        <span class="text-muted" style="font-size: 0.78rem;">Managed in <code>config/config.php</code> (read-only)</span>
     </div>
 <?php endif; ?>
 

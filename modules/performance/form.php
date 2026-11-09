@@ -354,11 +354,15 @@ require_once __DIR__ . '/../../includes/header.php';
             <li class="breadcrumb-item active" aria-current="page"><?= $editing ? 'Edit Review' : 'New Review' ?></li>
         </ol>
     </nav>
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h1 class="page-header-title mb-0"><?= $editing ? 'Edit Performance Review' : 'New Performance Review' ?></h1>
-        <a href="<?= e(url('modules/performance/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Back to List
-        </a>
+    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="page-header-title-block">
+            <h1 class="page-header-title mb-0"><?= $editing ? 'Edit Performance Review' : 'New Performance Review' ?></h1>
+        </div>
+        <div class="page-actions">
+            <a href="<?= e(url('modules/performance/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
     </div>
 </div>
 

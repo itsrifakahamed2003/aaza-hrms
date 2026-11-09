@@ -174,7 +174,7 @@ require __DIR__ . '/_report_header.php';
                                                     <span class="badge text-bg-primary" title="<?= e($recList['hire'] ?? 'Hire') ?>"><?= (int)$row['rec_hire'] ?> <?= e($recList['hire'] ?? 'Hire') ?></span>
                                                 <?php endif; ?>
                                                 <?php if ((int)$row['rec_hold'] > 0): ?>
-                                                    <span class="badge text-bg-warning text-body" title="<?= e($recList['hold'] ?? 'Hold') ?>"><?= (int)$row['rec_hold'] ?> <?= e($recList['hold'] ?? 'Hold') ?></span>
+                                                    <span class="badge text-bg-warning" title="<?= e($recList['hold'] ?? 'Hold') ?>"><?= (int)$row['rec_hold'] ?> <?= e($recList['hold'] ?? 'Hold') ?></span>
                                                 <?php endif; ?>
                                                 <?php if ((int)$row['rec_reject'] > 0): ?>
                                                     <span class="badge text-bg-danger" title="<?= e($recList['reject'] ?? 'Reject') ?>"><?= (int)$row['rec_reject'] ?> <?= e($recList['reject'] ?? 'Reject') ?></span>

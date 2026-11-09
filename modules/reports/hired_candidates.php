@@ -116,7 +116,7 @@ require __DIR__ . '/_report_header.php';
                                     <?php if ($row['employee_code'] !== 'Pending'): ?>
                                         <span class="badge text-bg-success font-monospace"><?= e($row['employee_code']) ?></span>
                                     <?php else: ?>
-                                        <span class="badge text-bg-warning text-body font-sans">Pending Code</span>
+                                        <span class="badge text-bg-warning font-sans">Pending Code</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-end pe-3 font-sans">

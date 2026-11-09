@@ -106,7 +106,7 @@ require __DIR__ . '/../../includes/header.php';
         <h1 class="page-header-title">Roles &amp; Security Profiles</h1>
         <p class="page-header-desc">Manage standard authorization profiles and configure fine-grained module access controls.</p>
     </div>
-    <div class="page-header-actions">
+    <div class="page-header-actions page-actions">
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newRoleModal">
             <i class="bi bi-shield-plus me-1"></i> New Role
         </button>
@@ -185,30 +185,31 @@ require __DIR__ . '/../../includes/header.php';
                     <!-- Card Actions -->
                     <div class="d-flex justify-content-between align-items-center gap-2 pt-2 border-top">
                         <div>
-                            <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/users/index.php?role_id=' . $rid)) ?>" title="View users holding this role">
-                                <i class="bi bi-person-lines-fill me-1"></i> View users
-                            </a>
+                            <span class="small text-muted font-monospace"><?= $userCount ?> user<?= $userCount === 1 ? '' : 's' ?></span>
                         </div>
-                        <div class="d-flex gap-1">
+                        <div class="d-inline-flex align-items-center gap-1">
                             <?php if ($isGroupAdmin): ?>
-                                <button class="btn btn-outline-secondary btn-sm" disabled title="Group Administrator possesses all permissions inherently">
-                                    <i class="bi bi-shield-check me-1"></i> Full Access
-                                </button>
+                                <span class="badge text-bg-secondary"><i class="bi bi-shield-check me-1"></i>Full Access</span>
                             <?php else: ?>
-                                <a class="btn btn-outline-primary btn-sm" href="<?= e(url('modules/roles/edit.php?id=' . $rid)) ?>">
-                                    <i class="bi bi-pencil-square me-1"></i> Edit permissions
+                                <a class="btn btn-outline-primary btn-sm py-1 px-2.5" href="<?= e(url('modules/roles/edit.php?id=' . $rid)) ?>">
+                                    <i class="bi bi-pencil-square me-1"></i> Edit
                                 </a>
-                                <?php if (!$isSystem && $canDeleteRole): ?>
-                                    <?php if ($userCount > 0): ?>
-                                        <button type="button" class="btn btn-outline-danger btn-sm" disabled title="Cannot delete: role is assigned to <?= $userCount ?> user(s). Reassign them first.">
-                                            <i class="bi bi-trash3"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteRoleModal<?= $rid ?>" title="Delete custom role">
-                                            <i class="bi bi-trash3"></i>
-                                        </button>
-                                    <?php endif; ?>
-                                <?php endif; ?>
+                                <?= action_menu([
+                                    [
+                                        'type'  => 'link',
+                                        'label' => 'View Users (' . $userCount . ')',
+                                        'url'   => 'modules/users/index.php?role_id=' . $rid,
+                                        'icon'  => 'bi-people',
+                                    ],
+                                    [
+                                        'type'       => 'button',
+                                        'label'      => 'Delete Custom Role',
+                                        'icon'       => 'bi-trash3',
+                                        'modal'      => '#deleteRoleModal' . $rid,
+                                        'danger'     => true,
+                                        'permission' => (!$isSystem && $canDeleteRole && $userCount === 0),
+                                    ],
+                                ]) ?>
                             <?php endif; ?>
                         </div>
                     </div>

@@ -101,9 +101,9 @@ foreach ($rawHolidays as $hDate => $hName) {
 
 <div class="container-fluid px-3 px-md-4 py-4">
     <!-- Welcome Header -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
-        <div>
-            <h1 class="h3 fw-bold mb-1 text-body">
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+        <div class="page-header-title-block">
+            <h1 class="page-header-title h3 fw-bold mb-1 text-body">
                 Welcome, <?= e($dashUser['full_name']) ?>
             </h1>
             <div class="text-muted small d-flex align-items-center gap-2 flex-wrap">
@@ -114,7 +114,7 @@ foreach ($rawHolidays as $hDate => $hName) {
                 <span><i class="bi bi-calendar3 me-1"></i><?= date('l, F j, Y') ?></span>
             </div>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="page-actions d-flex gap-2 flex-wrap">
             <?php if ($linkedEmp): ?>
                 <a href="<?= e(url('modules/leave/request.php')) ?>" class="btn btn-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i> Apply for Leave
@@ -263,7 +263,7 @@ foreach ($rawHolidays as $hDate => $hName) {
                         <?php else: ?>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light small">
+                                    <thead class="table-active small">
                                         <tr>
                                             <th>Type</th>
                                             <th>Dates</th>
@@ -282,7 +282,7 @@ foreach ($rawHolidays as $hDate => $hName) {
                                                     <small class="text-body"><?= date('M j, Y', strtotime($rl['start_date'])) ?> - <?= date('M j, Y', strtotime($rl['end_date'])) ?></small>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-light text-body border"><?= (float)$rl['total_days'] ?>d</span>
+                                                    <span class="badge bg-body-secondary text-body border"><?= (float)$rl['total_days'] ?>d</span>
                                                 </td>
                                                 <td>
                                                     <?php

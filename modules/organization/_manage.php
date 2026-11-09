@@ -48,6 +48,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (mb_strlen($desc) > 255) {
                 flash_set('danger', 'Description is too long (max 255 characters).');
             } else {
+                // Explicit case-insensitive duplicate check within the company
+                $stDup = $pdo->prepare("SELECT id FROM $table WHERE company_id = ? AND LOWER($field) = LOWER(?) LIMIT 1");
+                $stDup->execute([$cid, $name]);
+                if ($stDup->fetch()) {
+                    flash_set('danger', 'That ' . strtolower($org['singular']) . ' already exists in this company.');
+                    $back($cid);
+                }
+
                 try {
                     $pdo->prepare("INSERT INTO $table (company_id, $field, description) VALUES (?, ?, ?)")
                         ->execute([$cid, $name, $desc ?: null]);
@@ -93,6 +101,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($name === '' || mb_strlen($name) > 100 || mb_strlen($desc) > 255) {
                 flash_set('danger', 'Name is required (max 100 characters); description max 255.');
             } else {
+                // Explicit case-insensitive duplicate check within the company (excluding this row)
+                $stDup = $pdo->prepare("SELECT id FROM $table WHERE company_id = ? AND LOWER($field) = LOWER(?) AND id != ? LIMIT 1");
+                $stDup->execute([$cid, $name, $id]);
+                if ($stDup->fetch()) {
+                    flash_set('danger', 'Another ' . strtolower($org['singular']) . ' with that name already exists.');
+                    $back($cid);
+                }
+
                 try {
                     $pdo->prepare("UPDATE $table SET $field = ?, description = ? WHERE id = ?")
                         ->execute([$name, $desc ?: null, $id]);
@@ -186,17 +202,17 @@ $canDelete  = is_group_admin() && user_can($deletePerm);
 $pageTitle = $org['plural'];
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
         <h1 class="h4 mb-0"><?= e($org['plural']) ?></h1>
         <p class="text-muted mb-0 small">
             Kept per company. Deactivate first to safely delete records with no dependent data.
         </p>
     </div>
-    <div class="d-flex gap-2">
-        <a class="btn btn-sm <?= $org['key'] === 'department' ? 'btn-dark' : 'btn-outline-dark' ?>"
+    <div class="page-header-actions page-actions d-flex gap-2">
+        <a class="btn btn-sm <?= $org['key'] === 'department' ? 'btn-primary' : 'btn-outline-secondary' ?>"
            href="<?= e(url('modules/organization/departments.php?company_id=' . $companyId)) ?>">Departments</a>
-        <a class="btn btn-sm <?= $org['key'] === 'designation' ? 'btn-dark' : 'btn-outline-dark' ?>"
+        <a class="btn btn-sm <?= $org['key'] === 'designation' ? 'btn-primary' : 'btn-outline-secondary' ?>"
            href="<?= e(url('modules/organization/designations.php?company_id=' . $companyId)) ?>">Designations</a>
     </div>
 </div>
@@ -250,7 +266,7 @@ require __DIR__ . '/../../includes/header.php';
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
             <thead class="table-active">
-            <tr><th><?= e($org['singular']) ?></th><th>Description</th><th class="text-center">Employees</th><th>Status</th><th></th></tr>
+            <tr><th><?= e($org['singular']) ?></th><th>Description</th><th class="text-center">Employees</th><th>Status</th><th class="text-end pe-3 action-col">Actions</th></tr>
             </thead>
             <tbody>
             <?php foreach ($items as $it): ?>
@@ -271,26 +287,33 @@ require __DIR__ . '/../../includes/header.php';
                             ? '<span class="badge text-bg-success">Active</span>'
                             : '<span class="badge text-bg-secondary">Inactive</span>' ?>
                     </td>
-                    <td class="text-end text-nowrap">
-                        <form id="u<?= $iid ?>" method="post" class="d-inline">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="id" value="<?= $iid ?>">
-                            <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
-                        </form>
-                        <form method="post" class="d-inline">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="toggle">
-                            <input type="hidden" name="id" value="<?= $iid ?>">
-                            <button class="btn btn-sm btn-outline-<?= $it['is_active'] ? 'danger' : 'success' ?>" type="submit">
-                                <?= $it['is_active'] ? 'Deactivate' : 'Activate' ?>
-                            </button>
-                        </form>
-                        <?php if ($canDelete && !(int)$it['is_active'] && (int)$it['total_refs'] === 0): ?>
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrgModal<?= $iid ?>" title="Delete <?= strtolower($org['singular']) ?>">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        <?php endif; ?>
+                    <td class="text-end text-nowrap pe-3 action-col">
+                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                            <form id="u<?= $iid ?>" method="post" class="d-inline m-0">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="update">
+                                <input type="hidden" name="id" value="<?= $iid ?>">
+                                <button class="btn btn-sm btn-outline-primary py-1 px-2.5" type="submit">Save</button>
+                            </form>
+                            <?= action_menu([
+                                [
+                                    'type'         => 'post',
+                                    'label'        => $it['is_active'] ? 'Deactivate' : 'Activate',
+                                    'url'          => '',
+                                    'icon'         => $it['is_active'] ? 'bi-pause-circle' : 'bi-play-circle',
+                                    'params'       => ['action' => 'toggle', 'id' => $iid],
+                                    'danger'       => (bool)$it['is_active'],
+                                ],
+                                [
+                                    'type'       => 'button',
+                                    'label'      => 'Delete ' . $org['singular'],
+                                    'icon'       => 'bi-trash',
+                                    'modal'      => '#deleteOrgModal' . $iid,
+                                    'danger'     => true,
+                                    'permission' => ($canDelete && !(int)$it['is_active'] && (int)$it['total_refs'] === 0),
+                                ],
+                            ]) ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

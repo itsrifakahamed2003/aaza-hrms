@@ -91,10 +91,10 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4">
     <!-- Top Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <div class="d-flex align-items-center gap-2">
-                <h1 class="h3 mb-0">Candidate Talent Pool</h1>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h1 class="page-header-title h3 mb-0">Candidate Talent Pool</h1>
                 <?php if ($hasCrossCompany): ?>
                     <span class="badge text-bg-success">Cross-Company Pool Access</span>
                 <?php else: ?>
@@ -105,7 +105,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 Centralized applicant database shared across AaZa Group. Track profiles, applications, and documents.
             </p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="page-actions">
             <?php if ($canManageCandidates): ?>
                 <a href="<?= e(url('modules/candidates/apply.php')) ?>" class="btn btn-outline-primary">
                     + Apply to Vacancy
@@ -159,6 +159,15 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <!-- Candidates Table -->
     <div class="card border-0 shadow-sm">
+        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="card-title mb-0 fs-6 fw-bold">Candidate Talent Pool</h5>
+                <small class="text-muted d-block mt-0.5">
+                    <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any candidate row to view full profile.
+                </small>
+            </div>
+            <span class="badge bg-body-secondary text-body border"><?= (int)$totalCount ?> candidate<?= (int)$totalCount === 1 ? '' : 's' ?></span>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -170,7 +179,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th>Experience & Skills</th>
                             <th>Source</th>
                             <th>Applications</th>
-                            <th class="text-end pe-3">Actions</th>
+                            <th class="text-end pe-3 action-col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -187,7 +196,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             </tr>
                         <?php else: ?>
                             <?php foreach ($candidates as $c): ?>
-                                <tr>
+                                <?php $candViewUrl = url('modules/candidates/view.php?id=' . (int)$c['id']); ?>
+                                <tr class="clickable-row candidate-row" data-href="<?= e($candViewUrl) ?>" title="Double-click to view candidate <?= e($c['candidate_code']) ?>">
                                     <td class="ps-3">
                                         <div class="d-flex align-items-center gap-2">
                                             <div>
@@ -225,24 +235,34 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <?= (int)$c['total_applications'] ?> application<?= (int)$c['total_applications'] === 1 ? '' : 's' ?>
                                         </span>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <div class="btn-group btn-group-sm">
-                                            <?php if (!empty($c['cv_doc_id'])): ?>
-                                                <a href="<?= e(url('modules/candidates/download.php?id=' . (int)$c['cv_doc_id'])) ?>" class="btn btn-outline-secondary" title="Download CV">
-                                                    CV
-                                                </a>
-                                            <?php endif; ?>
-                                            <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$c['id'])) ?>" class="btn btn-outline-primary">
-                                                Profile
+                                    <td class="text-end pe-3 action-col">
+                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                            <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$c['id'])) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5" title="View candidate profile">
+                                                <i class="bi bi-eye me-1"></i>View
                                             </a>
-                                            <?php if ($canManageCandidates): ?>
-                                                <a href="<?= e(url('modules/candidates/apply.php?candidate_id=' . (int)$c['id'])) ?>" class="btn btn-outline-success" title="Apply to Vacancy">
-                                                    Apply
-                                                </a>
-                                                <a href="<?= e(url('modules/candidates/form.php?id=' . (int)$c['id'])) ?>" class="btn btn-outline-secondary" title="Edit Profile">
-                                                    Edit
-                                                </a>
-                                            <?php endif; ?>
+                                            <?= action_menu([
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Download CV',
+                                                    'url'        => 'modules/candidates/download.php?id=' . (int)$c['cv_doc_id'],
+                                                    'icon'       => 'bi-file-earmark-arrow-down',
+                                                    'permission' => !empty($c['cv_doc_id']),
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Apply to Vacancy',
+                                                    'url'        => 'modules/candidates/apply.php?candidate_id=' . (int)$c['id'],
+                                                    'icon'       => 'bi-send',
+                                                    'permission' => (bool)$canManageCandidates,
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Edit Profile',
+                                                    'url'        => 'modules/candidates/form.php?id=' . (int)$c['id'],
+                                                    'icon'       => 'bi-pencil',
+                                                    'permission' => (bool)$canManageCandidates,
+                                                ],
+                                            ]) ?>
                                         </div>
                                     </td>
                                 </tr>

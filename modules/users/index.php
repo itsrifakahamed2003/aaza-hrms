@@ -153,7 +153,7 @@ require __DIR__ . '/../../includes/header.php';
         <h1 class="page-header-title">System User Accounts</h1>
         <p class="page-header-desc">Manage system users, company role assignments, and security permissions.</p>
     </div>
-    <div class="page-header-actions">
+    <div class="page-actions page-header-actions">
         <?php if ($canCreateUser): ?>
             <a class="btn btn-primary btn-sm" href="<?= e(url('modules/users/form.php')) ?>">
                 <i class="bi bi-person-plus me-1"></i> New User
@@ -172,9 +172,12 @@ require __DIR__ . '/../../includes/header.php';
                     <span class="input-group-text bg-body-tertiary text-muted border-end-0">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="search" class="form-control border-start-0" name="q"
+                    <input type="search" class="form-control border-start-0 border-end-0" name="q" id="userSearchQ"
                            placeholder="Search by name, username, or email..."
                            value="<?= e($q) ?>">
+                    <button type="button" class="btn btn-outline-secondary border-start-0 btn-input-clear <?= $q !== '' ? '' : 'd-none' ?>" id="userSearchClearBtn" aria-label="Clear search" title="Clear search">
+                        <i class="bi bi-x"></i>
+                    </button>
                 </div>
             </div>
 
@@ -243,7 +246,7 @@ require __DIR__ . '/../../includes/header.php';
                     <th>Status</th>
                     <th>Company &amp; Role Assignments</th>
                     <th>Last Sign-In</th>
-                    <th class="text-end pe-4">Actions</th>
+                    <th class="text-end pe-4 action-col">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -302,10 +305,21 @@ require __DIR__ . '/../../includes/header.php';
                     <td class="small text-muted">
                         <?= $u['last_login_at'] ? e(date('M j, Y H:i', strtotime((string)$u['last_login_at']))) : '<span class="text-muted">Never</span>' ?>
                     </td>
-                    <td class="text-end pe-4 text-nowrap" onclick="event.stopPropagation();">
-                        <a class="btn btn-sm btn-outline-primary" href="<?= e($viewUrl) ?>">
-                            <i class="bi bi-person-lines-fill me-1"></i> View Profile
-                        </a>
+                    <td class="text-end pe-4 text-nowrap action-col" onclick="event.stopPropagation();">
+                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                            <a class="btn btn-sm btn-outline-primary py-1 px-2.5" href="<?= e($viewUrl) ?>" title="View user profile">
+                                <i class="bi bi-person-lines-fill me-1"></i>View
+                            </a>
+                            <?= action_menu([
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'Edit Account',
+                                    'url'        => 'modules/users/form.php?id=' . (int)$u['id'],
+                                    'icon'       => 'bi-pencil',
+                                    'permission' => ($canCreateUser || is_group_admin()),
+                                ],
+                            ]) ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -345,17 +359,17 @@ require __DIR__ . '/../../includes/header.php';
             $userAssignments = $assignments[$uid] ?? [];
             $viewUrl = url('modules/users/view.php?id=' . $uid);
             ?>
-            <a href="<?= e($viewUrl) ?>" class="d-block p-3 text-decoration-none text-body border-bottom">
+            <div class="p-3 border-bottom">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <div class="d-flex align-items-center gap-2">
                         <div class="avatar-initials-md"><?= e($uInitials) ?></div>
                         <div>
-                            <div class="fw-semibold text-body">
+                            <a href="<?= e($viewUrl) ?>" class="fw-semibold text-body text-decoration-none">
                                 <?= e($u['full_name']) ?>
                                 <?php if ($uid === $selfId): ?>
                                     <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.65rem;">You</span>
                                 <?php endif; ?>
-                            </div>
+                            </a>
                             <div class="small text-muted"><?= e($u['email']) ?></div>
                         </div>
                     </div>
@@ -382,9 +396,22 @@ require __DIR__ . '/../../includes/header.php';
 
                 <div class="d-flex justify-content-between align-items-center small text-muted">
                     <span>Last sign-in: <?= $u['last_login_at'] ? e(date('M j, Y', strtotime((string)$u['last_login_at']))) : 'Never' ?></span>
-                    <span class="text-primary fw-medium">View &rarr;</span>
+                    <div class="d-inline-flex align-items-center gap-1">
+                        <a href="<?= e($viewUrl) ?>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.8rem;">
+                            View
+                        </a>
+                        <?= action_menu([
+                            [
+                                'type'       => 'link',
+                                'label'      => 'Edit Account',
+                                'url'        => 'modules/users/form.php?id=' . (int)$u['id'],
+                                'icon'       => 'bi-pencil',
+                                'permission' => ($canCreateUser || is_group_admin()),
+                            ],
+                        ]) ?>
+                    </div>
                 </div>
-            </a>
+            </div>
         <?php endforeach; ?>
 
         <?php if (!$users): ?>

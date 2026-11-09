@@ -100,8 +100,8 @@ $companies = $pdo->query(
 $pageTitle = 'Companies';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div>
+<div class="page-header mb-3">
+    <div class="page-header-title-block">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb breadcrumb-clean mb-1">
                 <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
@@ -111,7 +111,7 @@ require __DIR__ . '/../../includes/header.php';
         <h1 class="page-header-title mb-0">Companies</h1>
         <p class="text-muted mb-0 small">Every company in AaZa Group. Deactivating a company removes access while keeping its history. Deletion is permitted only for deactivated companies with no records.</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="page-actions">
         <?php if (is_group_admin() && user_can('company.logo')): ?>
             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#appBrandingModal">
                 <i class="bi bi-palette me-1"></i>App Branding
@@ -124,6 +124,15 @@ require __DIR__ . '/../../includes/header.php';
 </div>
 
 <div class="card shadow-sm border-0">
+    <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h5 class="card-title mb-0 fs-6 fw-bold">Company Entities Directory</h5>
+            <small class="text-muted d-block mt-0.5">
+                <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any company row to view company overview.
+            </small>
+        </div>
+        <span class="badge bg-body-secondary text-body border"><?= count($companies) ?> entit<?= count($companies) === 1 ? 'y' : 'ies' ?></span>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-active">
@@ -134,13 +143,16 @@ require __DIR__ . '/../../includes/header.php';
                 <th class="text-center">Departments</th>
                 <th class="text-center">Users</th>
                 <th>Status</th>
-                <th class="text-end pe-3">Actions</th>
+                <th class="text-end pe-3 action-col">Actions</th>
             </tr>
             </thead>
             <tbody>
             <?php foreach ($companies as $c): ?>
-                <?php $cid = (int)$c['id']; ?>
-                <tr>
+                <?php
+                $cid = (int)$c['id'];
+                $compViewUrl = url('modules/companies/view.php?id=' . $cid);
+                ?>
+                <tr class="clickable-row company-row" data-href="<?= e($compViewUrl) ?>" title="Double-click to view company <?= e($c['code']) ?>">
                     <td><code><?= e($c['code']) ?></code></td>
                     <td>
                         <div class="d-flex align-items-center gap-2">
@@ -161,41 +173,73 @@ require __DIR__ . '/../../includes/header.php';
                             ? '<span class="badge badge-soft-success">Active</span>'
                             : '<span class="badge badge-soft-secondary">Inactive</span>' ?>
                     </td>
-                    <td class="text-end text-nowrap pe-3">
-                        <?php if (is_group_admin() || user_can('company.settings', $cid)): ?>
-                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('modules/companies/settings.php?id=' . $cid)) ?>" title="Settings">
-                                <i class="bi bi-gear me-1"></i>Settings
+                    <td class="text-end text-nowrap pe-3 action-col">
+                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                            <a class="btn btn-sm btn-outline-primary py-1 px-2.5" href="<?= e($compViewUrl) ?>" title="View company profile">
+                                <i class="bi bi-eye me-1"></i>View
                             </a>
-                        <?php endif; ?>
-                        <a class="btn btn-sm btn-outline-primary" href="<?= e(url('modules/companies/form.php?id=' . $cid)) ?>">
-                            <i class="bi bi-pencil me-1"></i>Edit
-                        </a>
-
-                        <?php if ($c['is_active']): ?>
-                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('modules/organization/departments.php?company_id=' . $cid)) ?>">Departments</a>
-                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('modules/organization/designations.php?company_id=' . $cid)) ?>">Designations</a>
-                            <form method="post" action="<?= e(url('modules/companies/toggle.php')) ?>" class="d-inline"
-                                  data-confirm="Deactivate <?= e($c['name']) ?>? Its history and records will be kept." data-confirm-type="warning">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="id" value="<?= $cid ?>">
-                                <button class="btn btn-sm btn-outline-warning" type="submit" title="Deactivate this company">
-                                    Deactivate
-                                </button>
-                            </form>
-                        <?php else: ?>
-                            <!-- Inactive company actions: Activate and Delete -->
-                            <form method="post" action="<?= e(url('modules/companies/toggle.php')) ?>" class="d-inline"
-                                  data-confirm="Activate <?= e($c['name']) ?>?" data-confirm-type="success">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="id" value="<?= $cid ?>">
-                                <button class="btn btn-sm btn-outline-success" type="submit" title="Activate this company">
-                                    Activate
-                                </button>
-                            </form>
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteCompanyModal<?= $cid ?>" title="Delete deactivated company">
-                                <i class="bi bi-trash me-1"></i>Delete
-                            </button>
-                        <?php endif; ?>
+                            <a class="btn btn-sm btn-outline-secondary py-1 px-2" href="<?= e(url('modules/companies/form.php?id=' . $cid)) ?>" title="Edit company details">
+                                <i class="bi bi-pencil me-1"></i>Edit
+                            </a>
+                            <?= action_menu([
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'View Company Overview',
+                                    'url'        => 'modules/companies/view.php?id=' . $cid,
+                                    'icon'       => 'bi-eye',
+                                ],
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'Settings',
+                                    'url'        => 'modules/companies/settings.php?id=' . $cid,
+                                    'icon'       => 'bi-gear',
+                                    'permission' => (is_group_admin() || user_can('company.settings', $cid)),
+                                ],
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'Departments',
+                                    'url'        => 'modules/organization/departments.php?company_id=' . $cid,
+                                    'icon'       => 'bi-diagram-3',
+                                    'permission' => (bool)$c['is_active'],
+                                ],
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'Designations',
+                                    'url'        => 'modules/organization/designations.php?company_id=' . $cid,
+                                    'icon'       => 'bi-award',
+                                    'permission' => (bool)$c['is_active'],
+                                ],
+                                [
+                                    'type'         => 'post',
+                                    'label'        => 'Deactivate',
+                                    'url'          => 'modules/companies/toggle.php',
+                                    'icon'         => 'bi-pause-circle',
+                                    'params'       => ['id' => $cid],
+                                    'confirm'      => "Deactivate " . $c['name'] . "? Its history and records will be kept.",
+                                    'confirm_type' => 'warning',
+                                    'danger'       => true,
+                                    'permission'   => (bool)$c['is_active'],
+                                ],
+                                [
+                                    'type'         => 'post',
+                                    'label'        => 'Activate',
+                                    'url'          => 'modules/companies/toggle.php',
+                                    'icon'         => 'bi-play-circle',
+                                    'params'       => ['id' => $cid],
+                                    'confirm'      => "Activate " . $c['name'] . "?",
+                                    'confirm_type' => 'success',
+                                    'permission'   => !(bool)$c['is_active'],
+                                ],
+                                [
+                                    'type'       => 'button',
+                                    'label'      => 'Delete Company',
+                                    'icon'       => 'bi-trash',
+                                    'modal'      => '#deleteCompanyModal' . $cid,
+                                    'danger'     => true,
+                                    'permission' => !(bool)$c['is_active'],
+                                ],
+                            ]) ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

@@ -22,7 +22,7 @@
 15. [Unified Global Search Engine](#15-unified-global-search-engine)
 16. [In-App Notifications & Scheduled Reminders](#16-in-app-notifications--scheduled-reminders)
 17. [Enterprise Deletion Safety & Lifecycle Guards](#17-enterprise-deletion-safety--lifecycle-guards)
-18. [Branding, Company Settings & System Health](#18-branding-company-settings--system-health)
+18. [Branding & Company Settings](#18-branding--company-settings)
 
 ---
 
@@ -31,7 +31,7 @@
 AaZa HRMS is designed to support conglomerates and multi-tenant groups with centralized governance and partitioned subsidiary operations.
 
 ### Key Roles
-- **Group Administrator (`group_admin`):** Global superuser with unrestricted access across all companies, settings, user provisioning, system health, and deletion tools.
+- **Group Administrator (`group_admin`):** Global superuser with unrestricted access across all companies, settings, user provisioning, and deletion tools.
 - **Group HR Manager (`group_hr`):** Cross-company HR governance, analytics, and group-wide recruitment oversight.
 - **Company Administrator (`company_admin`):** Full operational authority within their assigned subsidiary company.
 - **HR Manager (`hr_manager`):** Company-level HR oversight: candidate pipelines, interviews, offers, employee dossiers, and leave approvals.
@@ -101,6 +101,27 @@ AaZa HRMS enforces strict multi-company tenant scoping. A user assigned to Compa
 ### Visual Pipeline
 Navigate to **Vacancies → Pipeline Kanban** (`/modules/vacancies/pipeline.php`) to drag and drop candidates across stages:
 `Applied` → `Under Review` → `Shortlisted` → `Interview Scheduled` → `Interviewed` → `Selected` → `Offered` → `Hired`.
+
+### Candidate Email Notifications & Preview Modal
+On the **Candidate Profile** (`/modules/candidates/view.php`, per application) and **Interview View** (`/modules/interviews/view.php`):
+1. Click **Email candidate** and select a template from the dropdown:
+   - `Application received`
+   - `Shortlisted`
+   - `Interview invite` (pre-filled with interview date, time, mode, location/link, and panel names)
+   - `Selected`
+   - `Rejected`
+   - `Offer`
+2. A **Preview Modal** opens displaying:
+   - **To:** Read-only field showing the candidate's real email address to authorized HR users.
+   - **Subject & Body:** Editable fields allowing HR to personalize the message before sending.
+   - **Action Button:**
+     - When outgoing email (`MAIL_DRIVER = 'smtp'` or `'phpmail'`) is configured in `config/config.php`, click **Send** to dispatch the email directly and log the event in **Email History**.
+     - When outgoing email is not configured (`MAIL_DRIVER = 'none'`), click **Open in mail app** to launch your default email client via a `mailto:` link pre-populated with the recipient, subject, and body.
+3. **Optional Automatic Stage Emails:**
+   - When updating a candidate's stage (`Shortlisted`, `Selected`, or `Rejected`) or scheduling an interview (`/modules/interviews/schedule.php`), an optional **Email the candidate** checkbox is available (checked by default when email is configured).
+   - Email failures never block saving; if an email cannot be sent, the record is saved and a warning banner (`"Saved, but the email could not be sent: ..."`) is shown.
+4. **Email History:**
+   - The Candidate Profile page displays an **Email History** card listing every email attempt recorded in the activity log (sender name, template used, timestamp, and Sent/Failed status).
 
 ---
 
@@ -277,7 +298,7 @@ AaZa HRMS features strict lifecycle dependency guards to ensure historical audit
 
 ---
 
-## 18. Branding, Company Settings & System Health
+## 18. Branding & Company Settings
 
 ### Company Branding
 1. Navigate to **Organization → Companies** (`/modules/companies/index.php`).
@@ -290,13 +311,6 @@ Navigate to **Companies → Settings** (`/modules/companies/settings.php`) to co
 - Employee code prefix (e.g. `AZT-`, `AZL-`).
 - Workday start time and late grace minutes.
 - Custom weekly off days (e.g. Friday & Saturday vs. Saturday & Sunday).
+- **Email Configuration Status (Group Admin):** Group Administrators also see a read-only banner indicating whether outgoing candidate email is configured (`Email: Configured (SMTP)`) or using the mail-client fallback (`Email: Not configured - candidates are contacted via your mail app`). Credentials are stored strictly in `config/config.php` and never exposed in the UI.
 
-### System Health Dashboard
-Navigate to **Administration → System Health** (`/modules/system/health.php`) to inspect:
-- PHP version and active extensions.
-- Database connection latency, version, and schema integrity.
-- Filesystem write permissions for uploads, logs, and backups.
-- Last automated backup date and file size.
-- Last scheduled reminders cron execution.
-- Security alert if `public/setup.php` is still present on the server.
 

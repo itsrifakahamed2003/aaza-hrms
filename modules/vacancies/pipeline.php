@@ -152,7 +152,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
         }
 
-        flash_set('success', 'Application status successfully updated to ' . ($manualStatuses[$newStatus] ?? $newStatus) . '.');
+        if (!empty($_POST['send_email']) && in_array($newStatus, ['shortlisted', 'selected', 'rejected'], true)) {
+            try {
+                $mailRes = mail_send_candidate_template($pdo, $appId, $newStatus);
+                if (!empty($mailRes['ok'])) {
+                    flash_set('success', 'Application status updated to ' . ($manualStatuses[$newStatus] ?? $newStatus) . ' and email sent to candidate.');
+                } else {
+                    $mailErrText = trim((string)($mailRes['error'] ?? 'Email delivery failed.'));
+                    flash_set('warning', 'Saved, but the email could not be sent: ' . $mailErrText);
+                }
+            } catch (Throwable) {
+                flash_set('warning', 'Saved, but the email could not be sent: Unexpected mail error.');
+            }
+        } else {
+            flash_set('success', 'Application status successfully updated to ' . ($manualStatuses[$newStatus] ?? $newStatus) . '.');
+        }
     } catch (RuntimeException|InvalidArgumentException $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -288,6 +302,22 @@ foreach ($allApplications as $app) {
     }
 }
 
+// Accessible vacancies for switcher dropdown (open ones first)
+$scopedCompanyIds = scoped_company_ids('vacancy.view');
+[$scopedSql, $scopedParams] = company_in_sql($scopedCompanyIds, 'v.company_id');
+$switchSt = $pdo->prepare("
+    SELECT v.id, v.vacancy_code, v.title, v.status,
+           COUNT(ca.id) AS applications_count
+      FROM job_vacancies v
+      LEFT JOIN candidate_applications ca ON ca.vacancy_id = v.id
+     WHERE $scopedSql
+     GROUP BY v.id
+     ORDER BY (CASE WHEN v.status = 'open' THEN 1 WHEN v.status = 'on_hold' THEN 2 WHEN v.status = 'draft' THEN 3 ELSE 4 END),
+              v.title ASC
+");
+$switchSt->execute($scopedParams);
+$accessibleVacancies = $switchSt->fetchAll();
+
 $pageTitle = 'Pipeline: ' . ($vacancy['vacancy_code'] ?? '');
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -347,7 +377,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="container-fluid py-3">
     <!-- Top Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="page-header d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
@@ -365,13 +395,35 @@ require_once __DIR__ . '/../../includes/header.php';
                 </span>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="page-actions d-flex gap-2 align-items-center flex-wrap">
+            <a href="<?= e(url('modules/vacancies/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Vacancies
+            </a>
+            <?php if (!empty($accessibleVacancies)): ?>
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="pipelineSwitcherDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-kanban me-1"></i> Switch Vacancy
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-start dropdown-menu-md-end shadow-sm" aria-labelledby="pipelineSwitcherDropdown" style="max-height: 380px; overflow-y: auto; min-width: 280px; max-width: 90vw;">
+                        <li class="dropdown-header text-uppercase small">Switch Vacancy Board</li>
+                        <?php foreach ($accessibleVacancies as $av): ?>
+                            <li>
+                                <a class="dropdown-item d-flex justify-content-between align-items-center gap-2 <?= (int)$av['id'] === $id ? 'active fw-bold' : '' ?>" href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$av['id'])) ?>">
+                                    <span class="text-truncate">
+                                        <?= e($av['vacancy_code'] . ' - ' . $av['title'] . ' (' . (int)$av['applications_count'] . ' candidate' . ((int)$av['applications_count'] === 1 ? '' : 's') . ')') ?>
+                                    </span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
             <a href="<?= e(url('modules/vacancies/view.php?id=' . $id)) ?>" class="btn btn-outline-secondary btn-sm">
-                Vacancy Overview
+                <i class="bi bi-eye me-1"></i> Vacancy Overview
             </a>
             <?php if ($canManage): ?>
                 <a href="<?= e(url('modules/candidates/apply.php?vacancy_id=' . $id)) ?>" class="btn btn-primary btn-sm">
-                    + Add Applicant
+                    <i class="bi bi-plus-lg me-1"></i> Add Applicant
                 </a>
             <?php endif; ?>
         </div>
@@ -586,6 +638,21 @@ require_once __DIR__ . '/../../includes/header.php';
                         <textarea name="remarks" id="moveRemarks" class="form-control" rows="3" maxlength="255" placeholder="e.g. Cleared technical interview, Moved to shortlist, Rejected due to missing prerequisite qualification..."></textarea>
                         <div class="form-text" id="moveRemarksHelp">Required for Rejected and On Hold transitions (max 255 characters).</div>
                     </div>
+
+                    <div class="form-check p-2 ps-4 rounded bg-body-tertiary border" id="moveEmailCheckWrapper">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               name="send_email"
+                               id="moveSendEmailCheckbox"
+                               value="1"
+                               <?= mail_is_configured() ? 'checked' : '' ?>>
+                        <label class="form-check-label small fw-semibold" for="moveSendEmailCheckbox">
+                            <i class="bi bi-envelope me-1 text-primary"></i>Email the candidate
+                        </label>
+                        <div class="form-text small mt-0">
+                            Sends stage notification email when moving to Shortlisted, Selected, or Rejected.
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -716,7 +783,7 @@ function openMoveModal(appId, targetStage, candidateName, currentStatus) {
                 const evals = JSON.parse(rawEvals.textContent);
                 if (evals && evals.length > 0) {
                     evals.forEach(ev => {
-                        const recClass = ev.recommendation === 'strong_hire' ? 'text-bg-success' : (ev.recommendation === 'hire' ? 'text-bg-primary' : (ev.recommendation === 'reject' ? 'text-bg-danger' : 'text-bg-warning text-body'));
+                        const recClass = ev.recommendation === 'strong_hire' ? 'text-bg-success' : (ev.recommendation === 'hire' ? 'text-bg-primary' : (ev.recommendation === 'reject' ? 'text-bg-danger' : 'text-bg-warning'));
                         const div = document.createElement('div');
                         div.className = 'py-1 border-bottom d-flex justify-content-between align-items-center';
                         div.innerHTML = `

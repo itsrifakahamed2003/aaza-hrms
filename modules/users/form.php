@@ -248,7 +248,7 @@ require __DIR__ . '/../../includes/header.php';
         <h1 class="page-header-title"><?= $editing ? 'Edit User: ' . e($targetUser['full_name']) : 'Create New User Account' ?></h1>
         <p class="page-header-desc">Configure login credentials, administrative privileges, and entity role assignments.</p>
     </div>
-    <div class="page-header-actions">
+    <div class="page-actions page-header-actions">
         <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/users/index.php')) ?>">
             <i class="bi bi-arrow-left me-1"></i> Back to Users
         </a>

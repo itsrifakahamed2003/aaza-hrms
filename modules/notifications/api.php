@@ -16,8 +16,8 @@ if (!session_is_valid() || current_user() === null) {
 $currentUser = current_user();
 $currentUserId = (int)$currentUser['id'];
 
-// 2. Rate Limiting (60 requests per minute per user)
-if (!check_rate_limit('notifications_api', 60, 60)) {
+// 2. Rate Limiting (120 requests per minute per user)
+if (!check_rate_limit('notifications_api', 120, 60)) {
     http_response_code(429);
     echo json_encode(['error' => 'Rate limit exceeded. Please wait a moment.']);
     exit;

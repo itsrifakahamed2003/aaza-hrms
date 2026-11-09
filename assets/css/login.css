@@ -203,8 +203,9 @@ input:-webkit-autofill:focus {
     top: 16px;
     right: 16px;
     z-index: 10;
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     border-radius: 50%;
     border: 1px solid var(--border);
     background-color: var(--surface);
@@ -218,7 +219,19 @@ input:-webkit-autofill:focus {
 }
 .theme-toggle-fixed:hover { background-color: var(--surface-hover); color: var(--text-primary); transform: scale(1.05); }
 .theme-toggle-fixed:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.theme-toggle-fixed i { font-size: 18px; transition: transform 200ms ease, opacity 200ms ease; }
+.theme-toggle-fixed i { font-size: 15px; transition: transform 200ms ease, opacity 200ms ease; }
+
+@media (max-width: 479.98px) {
+    .theme-toggle-fixed {
+        width: 28px;
+        height: 28px;
+        top: 12px;
+        right: 12px;
+    }
+    .theme-toggle-fixed i {
+        font-size: 13px;
+    }
+}
 
 /* Animations */
 @media (prefers-reduced-motion: no-preference) {
@@ -256,4 +269,19 @@ input:-webkit-autofill:focus {
         animation: none !important;
         transition: none !important;
     }
+}
+
+/* Suppress browser native password reveal/clear icons */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+::-ms-reveal,
+::-ms-clear {
+    display: none !important;
+}
+
+input::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
 }

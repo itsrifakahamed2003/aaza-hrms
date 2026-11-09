@@ -18,7 +18,10 @@ document.addEventListener('DOMContentLoaded', function () {
     initStatCountUp();
     initKeyboardShortcuts();
     initGlobalSearch();
+    initGenericSearchClear();
     initNotifications();
+    initActionMenus();
+    initClickableRows();
 });
 
 /**
@@ -836,20 +839,28 @@ function initPasswordToggle() {
         const input = document.getElementById(targetId) || toggleBtn.parentElement.querySelector('input');
         if (!input) return;
 
+        const isPassword = (input.type === 'password');
         const icon = toggleBtn.querySelector('i');
-        if (input.type === 'password') {
+        if (isPassword) {
             input.type = 'text';
+            toggleBtn.setAttribute('aria-pressed', 'true');
+            toggleBtn.setAttribute('aria-label', 'Hide password');
+            toggleBtn.setAttribute('title', 'Hide password');
             if (icon) {
                 icon.classList.remove('bi-eye');
                 icon.classList.add('bi-eye-slash');
             }
         } else {
             input.type = 'password';
+            toggleBtn.setAttribute('aria-pressed', 'false');
+            toggleBtn.setAttribute('aria-label', 'Show password');
+            toggleBtn.setAttribute('title', 'Show password');
             if (icon) {
                 icon.classList.remove('bi-eye-slash');
                 icon.classList.add('bi-eye');
             }
         }
+        input.focus();
     });
 }
 
@@ -1021,6 +1032,12 @@ function initGlobalSearch() {
     }
 
     if (clearBtn) {
+        if (searchInput.value.trim().length > 0) {
+            clearBtn.classList.remove('d-none');
+        } else {
+            clearBtn.classList.add('d-none');
+        }
+
         clearBtn.addEventListener('click', function () {
             searchInput.value = '';
             clearBtn.classList.add('d-none');
@@ -1220,6 +1237,41 @@ function initGlobalSearch() {
 }
 
 /**
+ * 9. Generic Search Clear Buttons (.btn-input-clear)
+ */
+function initGenericSearchClear() {
+    document.addEventListener('input', function (e) {
+        const input = e.target;
+        if (!input || input.type !== 'search') return;
+        const container = input.closest('.input-group') || input.parentElement;
+        if (!container) return;
+        const clearBtn = container.querySelector('.btn-input-clear');
+        if (!clearBtn) return;
+        if (input.value.trim().length > 0) {
+            clearBtn.classList.remove('d-none');
+        } else {
+            clearBtn.classList.add('d-none');
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        const clearBtn = e.target.closest('.btn-input-clear');
+        if (!clearBtn) return;
+        const container = clearBtn.closest('.input-group') || clearBtn.parentElement;
+        if (!container) return;
+        const input = container.querySelector('input[type="search"], input[type="text"]');
+        if (!input) return;
+        input.value = '';
+        clearBtn.classList.add('d-none');
+        input.focus();
+        if (input.form) {
+            input.form.submit();
+        }
+    });
+}
+
+
+/**
  * 11. Topbar Notifications Controller
  * - Polls modules/notifications/api.php every 60s
  * - Updates unread count badge
@@ -1416,7 +1468,116 @@ function initNotifications() {
     }
 }
 
+/**
+ * 14. Action Menus (Kebab dropdowns inside tables/cards)
+ * Configures fixed Popper positioning so dropdowns are never clipped by .table-responsive or cards.
+ */
+function initActionMenus() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Dropdown) return;
 
+    function setupDropdown(el) {
+        if (!el || el.dataset.actionMenuInit) return;
+        el.dataset.actionMenuInit = 'true';
+        new bootstrap.Dropdown(el, {
+            popperConfig: function (defaultBsPopperConfig) {
+                return Object.assign({}, defaultBsPopperConfig, {
+                    strategy: 'fixed',
+                    modifiers: [
+                        {
+                            name: 'preventOverflow',
+                            options: {
+                                boundary: 'viewport',
+                                padding: 8
+                            }
+                        }
+                    ]
+                });
+            }
+        });
+    }
 
+    document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(setupDropdown);
 
+    // Also support dynamically added dropdowns or lazy init on click
+    document.addEventListener('show.bs.dropdown', function (e) {
+        const toggle = e.target;
+        if (toggle && !toggle.dataset.actionMenuInit) {
+            setupDropdown(toggle);
+        }
+    });
+}
+
+/**
+ * 15. Global Double-Click (desktop) & Double-Tap (mobile) Row Navigation
+ * Automatically handles any table row or element with class .clickable-row or [data-href]
+ */
+function initClickableRows() {
+    const rowSelector = '.clickable-row, [data-href], .offer-row, .employee-row, .candidate-row, .vacancy-row, .interview-row, .company-row, .leave-row';
+
+    // Desktop double-click
+    document.addEventListener('dblclick', function (e) {
+        const row = e.target.closest(rowSelector);
+        if (!row) return;
+
+        // Ignore clicks on buttons, inputs, form elements, dropdown toggles, and action column buttons
+        if (e.target.closest('button, select, input, textarea, .dropdown-menu, .btn, .action-col, [data-bs-toggle], form, a.btn, a.dropdown-item')) {
+            return;
+        }
+
+        const href = row.getAttribute('data-href');
+        if (href) {
+            row.classList.add('row-activating');
+            window.location.href = href;
+        }
+    });
+
+    // Mobile / Touch double-tap detection (within 400ms, non-scroll taps only)
+    let lastTapTime = 0;
+    let lastTapTarget = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+
+    document.addEventListener('touchstart', function (e) {
+        if (e.touches && e.touches.length === 1) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchMoved = false;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+        if (e.touches && e.touches.length === 1) {
+            const dx = Math.abs(e.touches[0].clientX - touchStartX);
+            const dy = Math.abs(e.touches[0].clientY - touchStartY);
+            if (dx > 10 || dy > 10) {
+                touchMoved = true;
+            }
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (e) {
+        if (touchMoved) return; // User was scrolling, not tapping
+
+        const row = e.target.closest(rowSelector);
+        if (!row) return;
+
+        if (e.target.closest('button, select, input, textarea, .dropdown-menu, .btn, .action-col, [data-bs-toggle], form, a.btn, a.dropdown-item')) {
+            return;
+        }
+
+        const href = row.getAttribute('data-href');
+        if (!href) return;
+
+        const now = Date.now();
+        const tapLength = now - lastTapTime;
+        if (tapLength > 50 && tapLength < 400 && lastTapTarget === row) {
+            e.preventDefault();
+            row.classList.add('row-activating');
+            window.location.href = href;
+        }
+        lastTapTime = now;
+        lastTapTarget = row;
+    });
+}
 

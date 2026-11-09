@@ -80,6 +80,7 @@ AaZa HRMS is an enterprise-grade, multi-company Human Resource Management and Re
 
 ## 2. System Requirements
 
+- **Hosting requirements:** PHP 8.1+ with PDO MySQL, MySQL/MariaDB, Apache with mod_rewrite; not suitable for serverless platforms because it needs a writable filesystem.
 - **PHP Version:** PHP 8.1 or higher (PHP 8.2+ recommended).
 - **Database:** MySQL 5.7+ or MariaDB 10.4+.
 - **Web Server:** Apache 2.4+ (XAMPP recommended on Windows) with `mod_rewrite` and `mod_headers` enabled.
@@ -88,7 +89,7 @@ AaZa HRMS is an enterprise-grade, multi-company Human Resource Management and Re
   - `fileinfo` (MIME verification for file uploads)
   - `zip` (Backup compression)
   - `mbstring` (Multibyte string processing)
-  - `openssl` (Secure token generation)
+  - `openssl` (Secure token generation and TLS/SSL SMTP connections)
   - `zlib` (Gzip database dump compression)
 
 ---
@@ -123,7 +124,7 @@ Upon completing Step 3, the installer generates `storage/installed.lock`, writes
 - **Safe Removal:** The installer does NOT delete itself silently. It displays a prominent security alert and offers a 1-click **Delete installer now** button (POST + CSRF) that permanently unlinks `public/setup.php`. Alternatively, hosting users can delete `public/setup.php` via cPanel File Manager or FTP.
 - **Lock Protection:** Once `storage/installed.lock` exists (or user accounts are registered), `public/setup.php` immediately blocks all access with HTTP 403 Forbidden.
 - **Pristine Template Guarantee:** A pristine distribution copy is maintained at `tools/templates/setup.php.dist`. The release builder (`tools/make_release.php`) always copies this pristine template to `public/setup.php` inside `dist/aaza_hrms_release.zip`, ensuring local testing can never remove the installer from distribution releases.
-- **System Health:** Group Administrators can monitor server environment, backups, and security status anytime at **Administration > System Health** (`modules/system/health.php`). If `public/setup.php` is still present, System Health displays a high-priority warning with a 1-click removal option.
+- **Post-Install Verification:** Verify system operation by signing in with your administrator credentials and checking `storage/logs/app.log`. If `public/setup.php` is still present in production mode, an urgent alert is displayed on the dashboard until it is removed.
 
 ### Step 5: Configure Scheduled Cron Jobs
 In cPanel **Cron Jobs**, set up the two essential background tasks:
@@ -190,7 +191,7 @@ For existing production instances, only apply migrations created after your inst
 
 ### Super Admin Dashboard
 1. Log in via `http://localhost/aaza_hrms/public/login.php` or `https://yourdomain.com/public/login.php`.
-2. Navigate to **Administration > System Health** (`modules/system/health.php`) to confirm all services, permissions, writable storage, and cron heartbeats are active.
+2. Verify system operation by confirming the dashboard loads properly and checking `storage/logs/app.log` for any errors or warnings.
 
 > [!CAUTION]
 > **CRITICAL PRODUCTION WARNING:**  
@@ -257,6 +258,36 @@ Key settings located in `config/config.php` and `config/database.php`:
 | `BACKUP_PATH` | Server directory where `.sql.gz` database backups are written. | `dirname(__DIR__) . '/storage/backups'` |
 | `BACKUP_RETENTION_DAYS` | Number of daily backup archives preserved before automated pruning. | `14` |
 | `BACKUP_MYSQLDUMP_PATH` | Explicit binary path to `mysqldump.exe` (auto-detected if blank). | `''` |
+| `MAIL_DRIVER` | Candidate email driver: `'smtp'`, `'phpmail'`, or `'none'` (default). | `'none'` |
+| `MAIL_HOST` | Outgoing SMTP server hostname. | `'smtp.gmail.com'` |
+| `MAIL_PORT` | Outgoing SMTP port (`587` for STARTTLS, `465` for implicit SSL). | `587` |
+| `MAIL_ENCRYPTION` | SMTP encryption mode: `'tls'` (STARTTLS) or `'ssl'` (implicit TLS). | `'tls'` |
+| `MAIL_USERNAME` | SMTP authentication username / mailbox address. | `''` |
+| `MAIL_PASSWORD` | SMTP password or Gmail App Password (never commit). | `''` |
+| `MAIL_FROM_EMAIL` | Sender email address for outgoing candidate emails. | `''` |
+| `MAIL_FROM_NAME` | Default sender display name. | `'AaZa HRMS'` |
+
+### Email setup
+
+AaZa HRMS includes a built-in, zero-dependency SMTP / PHP `mail()` engine (`includes/mailer.php` and `includes/mail_templates.php`) for sending automated and manual notifications to job candidates (`application_received`, `shortlisted`, `interview_invite`, `selected`, `rejected`, and `offer_sent`).
+
+- **Configuration Location:** Put your email settings **only in `config/config.php`** (which is git-ignored and excluded from release archives; **never commit** credentials or passwords to version control).
+- **Gmail SMTP Example:**
+  1. Enable **2-Step Verification** on the Google account.
+  2. Generate a 16-character **App Password** under *Google Account -> Security -> 2-Step Verification -> App passwords*.
+  3. Configure `config/config.php` with:
+     ```php
+     define('MAIL_DRIVER', 'smtp');
+     define('MAIL_HOST', 'smtp.gmail.com');
+     define('MAIL_PORT', 587);
+     define('MAIL_ENCRYPTION', 'tls');
+     define('MAIL_USERNAME', 'careers@yourcompany.com');
+     define('MAIL_PASSWORD', 'your-16-char-app-password'); // Gmail App Password, never commit
+     define('MAIL_FROM_EMAIL', 'careers@yourcompany.com');
+     define('MAIL_FROM_NAME', 'AaZa HRMS');
+     ```
+- **Free Shared Hosting Fallback (`Open in mail app`):** Many free shared hosts (such as InfinityFree) block outgoing SMTP ports (`587` / `465`) and disable `mail()`. When `MAIL_DRIVER` is set to `'none'`, the **"Open in mail app"** fallback is automatically used in the candidate email modal, opening the HR user's default mail client via a safe `mailto:` link pre-populated with the candidate's email, subject, and message body.
+- **Production Mailbox Recommendation:** Always use a dedicated **company mailbox** (e.g., `careers@yourcompany.com` or `hr@yourcompany.com`) when contacting real candidates in production.
 
 ---
 
@@ -443,13 +474,11 @@ When onboarding staff:
 2. Under **People > Employees**, create or edit their Employee Record and assign their login account in the **Login Account** dropdown.
 3. The employee can now sign in to access their Employee Self-Service dashboard, request leaves, and log attendance.
 
-### 4. System Health & Diagnostics Dashboard
-Group Administrators can visit **Administration > System Health** (`modules/system/health.php`) at any time to:
-- Monitor PHP version, active extensions, and memory limits.
-- Check live database connectivity and table status.
-- Confirm write permissions on `storage/` and `assets/uploads/`.
-- Verify recent backup and reminder execution timestamps.
-- Audit pending database migrations and check for any remaining setup files.
+### 4. System Verification & Application Logs
+Group Administrators can verify ongoing system operations by:
+- Signing in to the administrator dashboard to inspect company activity and module statistics.
+- Reviewing `storage/logs/app.log` for runtime exceptions, audit events, and background cron status.
+- Reviewing **Administration > Audit Logs** (`modules/audit/index.php`) for administrative actions.
 
 ---
 
@@ -494,8 +523,8 @@ To upgrade an existing live deployment to a newer release:
    ```
 3. **Deploy updated code:**
    Upload the new codebase files, ensuring you do not overwrite existing `config/config.php`, `config/database.php`, `storage/`, or `assets/uploads/`.
-4. **Verify System Health:**
-   Sign in as Group Admin and visit **Administration > System Health** (`modules/system/health.php`) to confirm all checks pass.
+4. **Verify System Operation:**
+   Sign in as Group Admin, navigate through key pages, and check `storage/logs/app.log` to confirm no errors are logged.
 
 ---
 

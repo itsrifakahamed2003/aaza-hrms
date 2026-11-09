@@ -38,7 +38,7 @@ if (!empty($filters['company_id']) && $filters['company_id'] > 0) {
 ?>
 
 <!-- Print-Only Header (visible only when window.print() is invoked) -->
-<div class="print-header">
+<div class="print-header d-none d-print-block">
     <div class="d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-3">
             <?php if (!empty($selectedCompData)): ?>
@@ -65,8 +65,8 @@ if (!empty($filters['company_id']) && $filters['company_id'] > 0) {
 </div>
 
 <!-- Screen Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 no-print">
-    <div>
+<div class="page-header mb-4 no-print">
+    <div class="page-header-title-block">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb breadcrumb-clean mb-1">
                 <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
@@ -76,7 +76,7 @@ if (!empty($filters['company_id']) && $filters['company_id'] > 0) {
         </nav>
         <h1 class="page-header-title mb-0"><?= e($pageTitle) ?></h1>
     </div>
-    <div class="page-header-actions d-flex gap-2">
+    <div class="page-header-actions page-actions">
         <a href="<?= e(url('modules/reports/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i> Catalog
         </a>
@@ -180,7 +180,7 @@ if (!empty($filters['company_id']) && $filters['company_id'] > 0) {
             <?php endif; ?>
 
             <!-- Buttons -->
-            <div class="col-auto">
+            <div class="col-12 col-sm-auto d-flex gap-2">
                 <button type="submit" class="btn btn-sm btn-primary">
                     <i class="bi bi-filter me-1"></i> Apply
                 </button>

@@ -41,8 +41,7 @@ $navIsItemActive = function(string $path) use ($navSelf): bool {
         || ($path === 'modules/leave/my_leaves.php' && (str_ends_with($navSelf, '/modules/leave/my_leaves.php') || str_ends_with($navSelf, '/modules/leave/request.php')))
         || ($path === 'modules/performance/index.php' && str_contains($navSelf, '/modules/performance/'))
         || ($path === 'modules/reports/index.php' && str_contains($navSelf, '/modules/reports/'))
-        || ($path === 'modules/audit/index.php' && str_contains($navSelf, '/modules/audit/'))
-        || ($path === 'modules/system/health.php' && str_contains($navSelf, '/modules/system/'));
+        || ($path === 'modules/audit/index.php' && str_contains($navSelf, '/modules/audit/'));
 };
 
 $navMenuGroups = [
@@ -96,7 +95,6 @@ $navMenuGroups = [
         ['Users',               'modules/users/index.php', 'bi-person-gear', (is_group_admin() || user_can('user.view'))],
         ['Roles & Permissions', 'modules/roles/index.php', 'bi-shield-lock', (is_group_admin() || user_can('role.manage'))],
         ['Audit Logs',           'modules/audit/index.php', 'bi-journal-text', user_can('audit.view')],
-        ['System Health',       'modules/system/health.php', 'bi-heart-pulse', is_group_admin()],
     ],
 ];
 
@@ -212,7 +210,7 @@ if (!empty($currentUserRow['full_name'])) {
                                     <i class="bi <?= e($navItem['icon']) ?>"></i>
                                     <span><?= e($navItem['label']) ?></span>
                                     <?php if ($navSecBadge !== null): ?>
-                                        <span class="badge text-bg-warning text-body ms-auto rounded-pill px-2 me-1" style="font-size: 0.72rem;"><?= (int)$navSecBadge ?></span>
+                                        <span class="badge text-bg-warning ms-auto rounded-pill px-2 me-1" style="font-size: 0.72rem;"><?= (int)$navSecBadge ?></span>
                                     <?php endif; ?>
                                     <i class="bi bi-chevron-down sidebar-chevron<?= $navSecBadge !== null ? '' : ' ms-auto' ?>"></i>
                                 </button>
@@ -229,7 +227,7 @@ if (!empty($currentUserRow['full_name'])) {
                                                     <i class="bi <?= e($navSubIcon) ?>"></i>
                                                     <span><?= e($navSubLabel) ?></span>
                                                     <?php if ($navSubBadge !== null): ?>
-                                                        <span class="badge text-bg-warning text-body ms-auto rounded-pill px-2" style="font-size: 0.72rem;"><?= (int)$navSubBadge ?></span>
+                                                        <span class="badge text-bg-warning ms-auto rounded-pill px-2" style="font-size: 0.72rem;"><?= (int)$navSubBadge ?></span>
                                                     <?php endif; ?>
                                                 </a>
                                             </li>
@@ -249,7 +247,7 @@ if (!empty($currentUserRow['full_name'])) {
                                     <i class="bi <?= e($navIcon) ?>"></i>
                                     <span><?= e($navLabel) ?></span>
                                     <?php if ($navBadge !== null): ?>
-                                        <span class="badge text-bg-warning text-body ms-auto rounded-pill px-2" style="font-size: 0.72rem;"><?= (int)$navBadge ?></span>
+                                        <span class="badge text-bg-warning ms-auto rounded-pill px-2" style="font-size: 0.72rem;"><?= (int)$navBadge ?></span>
                                     <?php endif; ?>
                                 </a>
                             </li>
@@ -328,22 +326,24 @@ if (!empty($currentUserRow['full_name'])) {
                     </button>
 
                     <form method="get" action="<?= e(url('modules/search/index.php')) ?>" class="topbar-search-box" id="topbarSearchBox" role="search">
-                        <button type="button" class="btn btn-link search-mobile-back-btn d-sm-none text-body p-0 me-2" id="mobileSearchCloseBtn" aria-label="Close Search">
-                            <i class="bi bi-arrow-left fs-5"></i>
+                        <button type="button" class="search-mobile-back-btn d-sm-none" id="mobileSearchCloseBtn" aria-label="Close Search" title="Back">
+                            <i class="bi bi-arrow-left"></i>
                         </button>
-                        <i class="bi bi-search search-box-icon"></i>
-                        <input type="search"
-                               name="q"
-                               class="form-control search-box-input"
-                               id="globalSearchInput"
-                               placeholder="Search..."
-                               autocomplete="off"
-                               spellcheck="false"
-                               maxlength="60"
-                               aria-label="Global Search">
-                        <button type="button" class="search-box-clear d-none" id="globalSearchClearBtn" aria-label="Clear input">
-                            <i class="bi bi-x fs-6"></i>
-                        </button>
+                        <div class="search-input-wrapper">
+                            <i class="bi bi-search search-box-icon"></i>
+                            <input type="search"
+                                   name="q"
+                                   class="form-control search-box-input"
+                                   id="globalSearchInput"
+                                   placeholder="Search..."
+                                   autocomplete="off"
+                                   spellcheck="false"
+                                   maxlength="60"
+                                   aria-label="Global Search">
+                            <button type="button" class="search-box-clear d-none" id="globalSearchClearBtn" aria-label="Clear input" title="Clear search">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
 
                         <!-- Live Dropdown Results Menu -->
                         <div class="search-results-dropdown shadow-lg d-none" id="globalSearchResultsDropdown" role="listbox">
@@ -393,7 +393,7 @@ if (!empty($currentUserRow['full_name'])) {
                 <div class="dropdown notif-dropdown-wrapper">
                     <button type="button" class="topbar-icon-btn position-relative" id="topbarNotificationsBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifications" title="Notifications">
                         <i class="bi bi-bell"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger <?= $topbarUnreadNotifs > 0 ? '' : 'd-none' ?> notif-badge" id="topbarNotifBadge">
+                        <span class="badge rounded-pill bg-danger <?= $topbarUnreadNotifs > 0 ? '' : 'd-none' ?> notif-badge" id="topbarNotifBadge">
                             <?= $topbarUnreadNotifs > 99 ? '99+' : $topbarUnreadNotifs ?>
                             <span class="visually-hidden">unread notifications</span>
                         </span>

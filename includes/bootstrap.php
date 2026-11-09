@@ -73,6 +73,8 @@ require_once __DIR__ . '/organization.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/performance.php';
+require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/mail_templates.php';
 
 set_exception_handler(function (Throwable $e): void {
     $refId = 'ERR-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));

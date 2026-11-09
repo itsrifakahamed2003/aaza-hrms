@@ -27,8 +27,8 @@ require __DIR__ . '/../../includes/header.php';
 ?>
 
 <!-- Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div>
+<div class="page-header mb-4">
+    <div class="page-header-title-block">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb breadcrumb-clean mb-1">
                 <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
@@ -38,7 +38,7 @@ require __DIR__ . '/../../includes/header.php';
         <h1 class="page-header-title mb-0">Reports &amp; Analytics Hub</h1>
         <p class="page-header-desc mb-0 mt-1">Select an analytical report or summary for cross-company workforce intelligence.</p>
     </div>
-    <div class="page-header-actions d-flex gap-2">
+    <div class="page-header-actions page-actions">
         <a href="<?= e(url('public/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-grid-1x2 me-1"></i> Dashboard
         </a>
@@ -340,7 +340,7 @@ require __DIR__ . '/../../includes/header.php';
                                 Daily attendance logs, monthly summaries, and individual employee punch records.
                             </p>
                             <div class="mt-3 pt-2 border-top">
-                                <a href="<?= e(url('modules/attendance/reports.php')) ?>" class="btn btn-sm btn-outline-dark w-100">
+                                <a href="<?= e(url('modules/attendance/reports.php')) ?>" class="btn btn-sm btn-outline-primary w-100">
                                     Open Attendance Analytics &rarr;
                                 </a>
                             </div>
@@ -362,7 +362,7 @@ require __DIR__ . '/../../includes/header.php';
                                 Annual leave balance tracking, request history, and approval distribution reports.
                             </p>
                             <div class="mt-3 pt-2 border-top">
-                                <a href="<?= e(url('modules/leave/reports.php')) ?>" class="btn btn-sm btn-outline-dark w-100">
+                                <a href="<?= e(url('modules/leave/reports.php')) ?>" class="btn btn-sm btn-outline-primary w-100">
                                     Open Leave Analytics &rarr;
                                 </a>
                             </div>
@@ -395,7 +395,7 @@ require __DIR__ . '/../../includes/header.php';
                             Breakdown of appraisal competency ratings (1 to 5) across departments, weighted averages, and high-performer tallies.
                         </p>
                         <div class="mt-3 pt-2 border-top">
-                            <a href="<?= e(url('modules/reports/performance_ratings.php')) ?>" class="btn btn-sm btn-outline-warning text-dark w-100">
+                            <a href="<?= e(url('modules/reports/performance_ratings.php')) ?>" class="btn btn-sm btn-outline-secondary w-100">
                                 Open Report &rarr;
                             </a>
                         </div>

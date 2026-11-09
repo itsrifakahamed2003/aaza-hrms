@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             <h1 class="page-header-title">Convert Candidate to Employee</h1>
             <p class="page-header-desc">Onboard <?= e($offer['first_name'] . ' ' . $offer['last_name']) ?> as an active employee in <?= e($offer['company_name']) ?>.</p>
         </div>
-        <div class="page-header-actions">
+        <div class="page-header-actions page-actions">
             <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/offers/view.php?id=' . $offerId)) ?>">
                 <i class="bi bi-arrow-left me-1"></i> Back to Offer
             </a>
@@ -101,22 +101,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         <?= csrf_field() ?>
                         <input type="hidden" name="offer_id" value="<?= $offerId ?>">
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold" for="userId">Login account (Optional)</label>
-                            <select class="form-select" id="userId" name="user_id">
-                                <option value="0">-- None (Unlinked) --</option>
-                                <?php foreach ($availableUsers as $u): ?>
-                                    <option value="<?= (int)$u['id'] ?>">
-                                        <?= e($u['full_name']) ?> (<?= e($u['username']) ?><?= !empty($u['email']) ? ' &mdash; ' . e($u['email']) : '' ?>)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="form-text">Active user assigned to this company who is not linked to any other employee.</div>
+                        <!-- Login Account Configuration (Optional) -->
+                        <div class="card bg-body-tertiary border p-3 mb-4">
+                            <div class="fw-semibold text-body mb-1">
+                                <i class="bi bi-person-badge me-1 text-primary"></i> System Login Account (Optional)
+                            </div>
+                            <p class="small text-muted mb-2">
+                                An employee record does <strong>not</strong> require a login account immediately. They can be created and managed in the system right away. You can invite or assign a user account at any time later in <strong>Administration &gt; Users</strong>.
+                            </p>
+                            <?php if (!empty($availableUsers)): ?>
+                                <label class="form-label small fw-semibold" for="userId">Link existing user account now:</label>
+                                <select class="form-select form-select-sm" id="userId" name="user_id">
+                                    <option value="0">-- None (Do not link a user account now) --</option>
+                                    <?php foreach ($availableUsers as $u): ?>
+                                        <option value="<?= (int)$u['id'] ?>">
+                                            <?= e($u['full_name']) ?> (<?= e($u['username']) ?><?= !empty($u['email']) ? ' &bull; ' . e($u['email']) : '' ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php else: ?>
+                                <input type="hidden" name="user_id" value="0">
+                                <div class="alert alert-light border small text-muted mb-0 py-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-info-circle text-primary fs-5"></i>
+                                    <div>
+                                        <strong>No unlinked user accounts currently available.</strong><br>
+                                        The employee will be created with <strong>Unlinked Login</strong>. You can create a new login account for this employee anytime in <a href="<?= e(url('modules/users/form.php')) ?>" target="_blank" class="alert-link">Administration &gt; Users</a>.
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-person-check-fill me-1"></i> Confirm &amp; Convert to Employee
+                            <button type="submit" class="btn btn-success px-4 shadow-sm" data-confirm="Confirm candidate conversion to active employee?" data-confirm-type="success">
+                                <i class="bi bi-person-check-fill me-1"></i> Confirm &amp; Create Employee Record
                             </button>
                             <a class="btn btn-outline-secondary" href="<?= e(url('modules/offers/view.php?id=' . $offerId)) ?>">Cancel</a>
                         </div>

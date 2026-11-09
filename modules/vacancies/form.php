@@ -223,19 +223,26 @@ $pageTitle = $isEdit ? 'Edit Vacancy: ' . ($vacancy['vacancy_code'] ?? '') : 'Cr
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 900px;">
-    <div class="mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="<?= e(url('modules/vacancies/index.php')) ?>">Vacancies</a></li>
-                <?php if ($isEdit): ?>
-                    <li class="breadcrumb-item"><a href="<?= e(url('modules/vacancies/view.php?id=' . (int)$vacancy['id'])) ?>"><?= e($vacancy['vacancy_code']) ?></a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
-                <?php else: ?>
-                    <li class="breadcrumb-item active" aria-current="page">New Vacancy</li>
-                <?php endif; ?>
-            </ol>
-        </nav>
-        <h1 class="h3 mb-0"><?= $isEdit ? 'Edit Vacancy (' . e($vacancy['vacancy_code']) . ')' : 'Create New Job Vacancy' ?></h1>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/vacancies/index.php')) ?>">Vacancies</a></li>
+                    <?php if ($isEdit): ?>
+                        <li class="breadcrumb-item"><a href="<?= e(url('modules/vacancies/view.php?id=' . (int)$vacancy['id'])) ?>"><?= e($vacancy['vacancy_code']) ?></a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                    <?php else: ?>
+                        <li class="breadcrumb-item active" aria-current="page">New Vacancy</li>
+                    <?php endif; ?>
+                </ol>
+            </nav>
+            <h1 class="page-header-title h3 mb-0"><?= $isEdit ? 'Edit Vacancy (' . e($vacancy['vacancy_code']) . ')' : 'Create New Job Vacancy' ?></h1>
+        </div>
+        <div class="page-actions">
+            <a href="<?= e($isEdit ? url('modules/vacancies/view.php?id=' . (int)$vacancy['id']) : url('modules/vacancies/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
     </div>
 
     <?php if (!empty($errors['general'])): ?>

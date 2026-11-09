@@ -69,103 +69,106 @@ $pageTitle = 'Audit Log Details #' . $id;
 require __DIR__ . '/../../includes/header.php';
 ?>
 
-<div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="<?= e(url('modules/audit/index.php')) ?>">Audit Logs</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Record #<?= $id ?></li>
-            </ol>
-        </nav>
-        <h2 class="h4 mb-0 fw-bold text-body font-sans">
-            <i class="bi bi-shield-check text-primary me-2"></i>Audit Log Record #<?= $id ?>
-        </h2>
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="<?= e(url('modules/audit/index.php')) ?>">Audit Logs</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Record #<?= $id ?></li>
+    </ol>
+</nav>
+
+<!-- Detail Header -->
+<div class="detail-header">
+    <div class="detail-header-main">
+        <div class="detail-header-title-row">
+            <h1 class="detail-header-title"><i class="bi bi-shield-check text-primary me-2"></i>Audit Record #<?= $id ?></h1>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                <?= e($log['action']) ?>
+            </span>
+        </div>
+        <p class="detail-header-subtitle">
+            <?= e(format_date($log['created_at'], 'd M Y, H:i:s')) ?>
+            &bull; Scope: <strong><?= !empty($log['company_name']) ? e($log['company_name']) : 'System / Global' ?></strong>
+            &bull; User: <strong><?= e($log['user_full_name'] ?? ($log['user_username'] ?? 'System')) ?></strong>
+        </p>
     </div>
-    <div>
-        <a href="<?= e(url('modules/audit/index.php')) ?>" class="btn btn-outline-secondary font-sans">
-            <i class="bi bi-arrow-left me-1"></i>Back to Audit List
+
+    <div class="detail-header-actions">
+        <a href="<?= e(url('modules/audit/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Audit List
         </a>
     </div>
 </div>
 
-<div class="row g-4">
+<div class="row g-3 align-items-start">
     <!-- Metadata Summary Card -->
     <div class="col-lg-5">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-body border-bottom py-3">
-                <h5 class="card-title mb-0 fw-semibold text-body font-sans">
-                    <i class="bi bi-info-circle text-primary me-2"></i>Event Information
-                </h5>
+        <div class="detail-card">
+            <div class="card-header">
+                <span><i class="bi bi-info-circle text-primary me-2"></i>Event Information</span>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0 font-sans">
-                        <tbody>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium" style="width: 38%;">Log ID</th>
-                                <td class="pe-3 font-monospace fw-bold text-body">#<?= (int)$log['id'] ?></td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">Timestamp</th>
-                                <td class="pe-3 font-monospace text-body">
-                                    <?= e(format_date($log['created_at'], 'd M Y, H:i:s')) ?>
-                                    <span class="text-muted small d-block"><?= e($log['created_at']) ?></span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">Action Code</th>
-                                <td class="pe-3">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
-                                        <?= e($log['action']) ?>
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">User</th>
-                                <td class="pe-3">
-                                    <?php if (!empty($log['user_id'])): ?>
-                                        <div class="fw-bold text-body"><?= e($log['user_full_name'] ?? 'User #' . $log['user_id']) ?></div>
-                                        <div class="small text-muted font-monospace">@<?= e($log['user_username'] ?? '—') ?></div>
-                                    <?php else: ?>
-                                        <span class="text-muted fst-italic">System / Anonymous</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">Company Scope</th>
-                                <td class="pe-3">
-                                    <?php if (!empty($log['company_id'])): ?>
-                                        <span class="fw-semibold text-body"><?= e($log['company_name'] ?? 'Company #' . $log['company_id']) ?></span>
-                                        <span class="badge text-bg-secondary ms-1"><?= e($log['company_code'] ?? '') ?></span>
-                                    <?php else: ?>
-                                        <span class="badge bg-body-secondary text-body border text-secondary font-sans">Global / System</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">Entity Type</th>
-                                <td class="pe-3">
-                                    <?php if (!empty($log['entity_type'])): ?>
-                                        <span class="badge bg-body-secondary text-body border text-body font-monospace"><?= e($log['entity_type']) ?></span>
-                                    <?php else: ?>
-                                        <span class="text-muted">—</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">Entity ID</th>
-                                <td class="pe-3 font-monospace">
-                                    <?= !empty($log['entity_id']) ? '#' . (int)$log['entity_id'] : '<span class="text-muted">—</span>' ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th class="ps-3 text-muted fw-medium">IP Address</th>
-                                <td class="pe-3 font-monospace">
-                                    <i class="bi bi-globe me-1 text-muted"></i><?= e($log['ip_address'] ?? '—') ?>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="card-body">
+                <div class="kv-list kv-list-single">
+                    <div class="kv-item">
+                        <span class="kv-label">Log ID</span>
+                        <span class="kv-value font-monospace fw-bold">#<?= (int)$log['id'] ?></span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">Timestamp</span>
+                        <span class="kv-value font-monospace small">
+                            <?= e(format_date($log['created_at'], 'd M Y, H:i:s')) ?>
+                            <span class="text-muted d-block"><?= e($log['created_at']) ?></span>
+                        </span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">Action Code</span>
+                        <span class="kv-value">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                                <?= e($log['action']) ?>
+                            </span>
+                        </span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">User</span>
+                        <span class="kv-value">
+                            <?php if (!empty($log['user_id'])): ?>
+                                <div class="fw-bold text-body"><?= e($log['user_full_name'] ?? 'User #' . $log['user_id']) ?></div>
+                                <div class="small text-muted font-monospace">@<?= e($log['user_username'] ?? '—') ?></div>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">System / Anonymous</span>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">Company Scope</span>
+                        <span class="kv-value">
+                            <?php if (!empty($log['company_id'])): ?>
+                                <span class="fw-semibold text-body"><?= e($log['company_name'] ?? 'Company #' . $log['company_id']) ?></span>
+                                <span class="badge text-bg-secondary ms-1 font-monospace"><?= e($log['company_code'] ?? '') ?></span>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Global / All Companies</span>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">Target Entity</span>
+                        <span class="kv-value font-monospace small">
+                            <?= !empty($log['entity_type']) ? e($log['entity_type']) . ' #' . (int)$log['entity_id'] : '<span class="text-muted fst-italic">—</span>' ?>
+                        </span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">IP Address</span>
+                        <span class="kv-value font-monospace small">
+                            <?= !empty($log['ip_address']) ? e($log['ip_address']) : '<span class="text-muted fst-italic">—</span>' ?>
+                        </span>
+                    </div>
+                    <div class="kv-item pt-2 border-top">
+                        <span class="kv-label">User Agent</span>
+                        <span class="kv-value small text-muted text-break" style="font-size: 0.8rem;">
+                            <?= !empty($log['user_agent']) ? e($log['user_agent']) : '<span class="fst-italic">—</span>' ?>
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="card-footer bg-body-tertiary border-top py-2 px-3 small text-muted font-sans">
@@ -176,7 +179,7 @@ require __DIR__ . '/../../includes/header.php';
 
     <!-- JSON Payload Card -->
     <div class="col-lg-7">
-        <div class="card shadow-sm border-0 h-100">
+        <div class="detail-card">
             <div class="card-header bg-body border-bottom py-3 d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0 fw-semibold text-body font-sans">
                     <i class="bi bi-file-earmark-code text-primary me-2"></i>Event Payload &amp; Context

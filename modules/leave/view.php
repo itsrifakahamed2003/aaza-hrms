@@ -67,117 +67,158 @@ $status = (string)$req['status'];
 $pageTitle = 'Leave Request #' . $id . ' - ' . $req['first_name'] . ' ' . $req['last_name'];
 require_once __DIR__ . '/../../includes/header.php';
 ?>
-<div class="container-fluid py-4" style="max-width: 1050px;">
-    <!-- Breadcrumb & Top Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item"><a href="<?= e(url('modules/leave/index.php')) ?>">Leave Applications</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Request #<?= (int)$req['id'] ?></li>
-                </ol>
-            </nav>
-            <div class="d-flex align-items-center gap-3">
-                <h1 class="h3 mb-0">Leave Application #<?= (int)$req['id'] ?></h1>
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="<?= e(url('modules/leave/index.php')) ?>">Leave Applications</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Request #<?= (int)$req['id'] ?></li>
+        </ol>
+    </nav>
+
+    <!-- Detail Header -->
+    <div class="detail-header">
+        <div class="detail-header-main">
+            <div class="detail-header-title-row">
+                <h1 class="detail-header-title">Leave Application #<?= (int)$req['id'] ?></h1>
                 <?= leave_status_badge($status) ?>
                 <?php if ((int)$req['half_day'] === 1): ?>
-                    <span class="badge badge-soft-warning">Half Day</span>
+                    <span class="badge text-bg-warning">Half Day</span>
                 <?php endif; ?>
             </div>
+            <p class="detail-header-subtitle">
+                Employee: <a href="<?= e(url('modules/employees/view.php?id=' . (int)$req['employee_id'])) ?>" class="text-decoration-none fw-semibold"><?= e($req['first_name'] . ' ' . $req['last_name']) ?></a>
+                (<?= e($req['employee_code']) ?>) &bull; <?= e($req['company_name']) ?> &bull; <?= e($req['leave_type_name']) ?>
+            </p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="<?= e(url('modules/leave/index.php')) ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back to Requests
-            </a>
-            <?php if (user_can('employee.view', $companyId)): ?>
-                <a href="<?= e(url('modules/employees/view.php?id=' . (int)$req['employee_id'])) ?>" class="btn btn-outline-primary">
+
+        <div class="detail-header-actions">
+            <!-- ONE Primary Button -->
+            <?php if ($status === 'pending' && $canApprove && !$isSelfRequest): ?>
+                <a href="#review-decision" class="btn btn-success btn-sm">
+                    <i class="bi bi-check2-circle me-1"></i> Review &amp; Decide
+                </a>
+            <?php elseif (user_can('employee.view', $companyId)): ?>
+                <a href="<?= e(url('modules/employees/view.php?id=' . (int)$req['employee_id'])) ?>" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-person me-1"></i> Employee Profile
                 </a>
+            <?php else: ?>
+                <a href="<?= e(url('modules/leave/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Requests
+                </a>
             <?php endif; ?>
+
+            <!-- ONE "More" 3-dot menu -->
+            <?php
+            $leaveMore = [];
+            if ($status === 'pending' && $canApprove && !$isSelfRequest && user_can('employee.view', $companyId)) {
+                $leaveMore[] = [
+                    'type' => 'link',
+                    'icon' => 'bi-person',
+                    'label' => 'Employee Profile',
+                    'url' => 'modules/employees/view.php?id=' . (int)$req['employee_id'],
+                ];
+            }
+            $leaveMore[] = [
+                'type' => 'link',
+                'icon' => 'bi-arrow-left',
+                'label' => 'Back to Requests',
+                'url' => 'modules/leave/index.php',
+            ];
+            echo action_menu($leaveMore, [
+                'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+                'aria_label' => 'More leave actions',
+            ]);
+            ?>
         </div>
     </div>
 
     <!-- Self-Approval Warning Banner -->
     <?php if ($status === 'pending' && $canApprove && $isSelfRequest): ?>
-        <div class="alert alert-warning border-warning shadow-sm mb-4" role="alert">
+        <div class="alert alert-warning border-warning shadow-sm mb-3" role="alert">
             <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
             <strong>Self-Approval Blocked:</strong> Company policy strictly prohibits approving or rejecting your own leave request. Another authorized manager or HR administrator must review this application.
         </div>
     <?php endif; ?>
 
-    <div class="row g-4">
+    <div class="row g-3 align-items-start">
         <!-- Main Application Details -->
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-body py-3">
-                    <h5 class="card-title mb-0">Application Information</h5>
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Application Information</span>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3 mb-4">
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Employee</div>
-                            <div class="fw-semibold text-body">
+                    <div class="kv-list">
+                        <div class="kv-item">
+                            <span class="kv-label">Employee</span>
+                            <span class="kv-value fw-semibold">
                                 <?= e($req['first_name'] . ' ' . $req['last_name']) ?>
                                 <span class="font-monospace text-muted small ms-1">(<?= e($req['employee_code']) ?>)</span>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Company &amp; Department</div>
-                            <div class="fw-semibold text-body">
-                                <span class="badge bg-body-secondary text-body border me-1"><?= e($req['company_code']) ?></span>
+                        <div class="kv-item">
+                            <span class="kv-label">Company &amp; Department</span>
+                            <span class="kv-value">
+                                <span class="badge bg-body-secondary text-body border me-1 font-monospace"><?= e($req['company_code']) ?></span>
                                 <?= e($req['department_name'] ?? 'General') ?>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Designation / Title</div>
-                            <div class="fw-semibold text-body"><?= e($req['designation_title'] ?? 'Staff') ?></div>
+                        <div class="kv-item">
+                            <span class="kv-label">Designation / Title</span>
+                            <span class="kv-value"><?= e($req['designation_title'] ?? 'Staff') ?></span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Leave Policy / Type</div>
-                            <div class="fw-semibold text-body">
+                        <div class="kv-item">
+                            <span class="kv-label">Leave Policy / Type</span>
+                            <span class="kv-value">
                                 <?= e($req['leave_type_name']) ?>
                                 <?php if ((int)$req['requires_document'] === 1): ?>
-                                    <span class="badge text-bg-warning text-body ms-1" style="font-size:0.75rem;">Doc Required</span>
+                                    <span class="badge text-bg-warning ms-1" style="font-size:0.75rem;">Doc Required</span>
                                 <?php endif; ?>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Leave Period</div>
-                            <div class="fw-semibold text-body fs-6">
+                        <div class="kv-item">
+                            <span class="kv-label">Leave Period</span>
+                            <span class="kv-value fw-semibold text-body">
                                 <?= e(format_date($req['start_date'])) ?>
                                 <?php if ($req['start_date'] !== $req['end_date']): ?>
                                     <i class="bi bi-arrow-right mx-1 text-muted"></i> <?= e(format_date($req['end_date'])) ?>
                                 <?php endif; ?>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Total Working Days</div>
-                            <div class="fw-bold font-monospace fs-5 text-primary">
+                        <div class="kv-item">
+                            <span class="kv-label">Total Working Days</span>
+                            <span class="kv-value fw-bold font-monospace text-primary fs-6">
                                 <?= e(number_format((float)$req['total_days'], 1)) ?> <span class="fs-6 fw-normal text-muted">day(s)</span>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Submission Date</div>
-                            <div class="fw-semibold text-body"><?= e(format_date($req['requested_at'])) ?></div>
+                        <div class="kv-item">
+                            <span class="kv-label">Submission Date</span>
+                            <span class="kv-value"><?= e(format_date($req['requested_at'])) ?></span>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="text-muted small">Supporting Document</div>
-                            <?php if (!empty($req['document_path'])): ?>
-                                <a href="<?= e(url('modules/leave/download.php?id=' . (int)$req['id'])) ?>" class="btn btn-sm btn-outline-primary mt-1">
-                                    <i class="bi bi-file-earmark-arrow-down me-1"></i> Download Attachment
-                                </a>
-                            <?php else: ?>
-                                <span class="text-muted">None attached</span>
-                            <?php endif; ?>
+                        <div class="kv-item">
+                            <span class="kv-label">Supporting Document</span>
+                            <span class="kv-value">
+                                <?php if (!empty($req['document_path'])): ?>
+                                    <a href="<?= e(url('modules/leave/download.php?id=' . (int)$req['id'])) ?>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:0.75rem;">
+                                        <i class="bi bi-file-earmark-arrow-down me-1"></i> Download Attachment
+                                    </a>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </span>
                         </div>
                     </div>
 
-                    <div class="mb-2">
-                        <div class="text-muted small fw-semibold">Reason / Handover Notes</div>
-                        <div class="bg-body-tertiary p-3 rounded mt-1 border text-body">
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="text-muted small fw-semibold text-uppercase mb-1">Reason / Handover Notes</div>
+                        <div class="bg-body-tertiary p-2 rounded border small text-body">
                             <?= !empty($req['reason']) ? nl2br(e($req['reason'])) : '<span class="text-muted fst-italic">No reason stated.</span>' ?>
                         </div>
                     </div>
+                </div>
+            </div>
                 </div>
             </div>
 

@@ -29,9 +29,9 @@ if ($companyFilter > 0 && !in_array($companyFilter, $scopedCompanyIds, true)) {
 }
 
 $statusFilter = trim((string)($_GET['status'] ?? ''));
-$dateFrom = trim((string)($_GET['date_from'] ?? ''));
-$dateTo = trim((string)($_GET['date_to'] ?? ''));
-$searchQ = trim((string)($_GET['q'] ?? ''));
+$dateFrom     = trim((string)($_GET['date_from'] ?? ''));
+$dateTo       = trim((string)($_GET['date_to'] ?? ''));
+$searchQ      = trim((string)($_GET['q'] ?? ''));
 
 // Build query
 $whereClauses = [];
@@ -46,7 +46,16 @@ if ($companyFilter > 0) {
     $params = array_merge($params, $scopedCompanyIds);
 }
 
-if ($statusFilter !== '' && array_key_exists($statusFilter, offer_status_list())) {
+// Support tabbed quick filters as well as explicit status codes
+if ($statusFilter === 'pending') {
+    $whereClauses[] = "jo.status IN ('draft', 'sent')";
+} elseif ($statusFilter === 'ready_to_hire') {
+    $whereClauses[] = "jo.status = 'accepted' AND jo.converted_employee_id IS NULL";
+} elseif ($statusFilter === 'hired') {
+    $whereClauses[] = "jo.converted_employee_id IS NOT NULL";
+} elseif ($statusFilter === 'archived') {
+    $whereClauses[] = "jo.status IN ('declined', 'expired', 'withdrawn')";
+} elseif ($statusFilter !== '' && array_key_exists($statusFilter, offer_status_list())) {
     $whereClauses[] = 'jo.status = ?';
     $params[] = $statusFilter;
 }
@@ -127,14 +136,13 @@ $compSt = $pdo->prepare("SELECT id, name, code FROM companies WHERE id IN ($phAc
 $compSt->execute($scopedCompanyIds);
 $accessibleCompanies = $compSt->fetchAll();
 
-// Offer KPI Counters for header banner
+// Offer KPI Counters for tab cards
 $kpiSql = "SELECT COUNT(*) AS total_offers,
                   SUM(CASE WHEN jo.status = 'draft' THEN 1 ELSE 0 END) AS count_draft,
                   SUM(CASE WHEN jo.status = 'sent' THEN 1 ELSE 0 END) AS count_sent,
-                  SUM(CASE WHEN jo.status = 'accepted' THEN 1 ELSE 0 END) AS count_accepted,
-                  SUM(CASE WHEN jo.status = 'declined' THEN 1 ELSE 0 END) AS count_declined,
-                  SUM(CASE WHEN jo.status = 'expired' THEN 1 ELSE 0 END) AS count_expired,
-                  SUM(CASE WHEN jo.status = 'withdrawn' THEN 1 ELSE 0 END) AS count_withdrawn
+                  SUM(CASE WHEN jo.status = 'accepted' AND jo.converted_employee_id IS NULL THEN 1 ELSE 0 END) AS count_ready_to_hire,
+                  SUM(CASE WHEN jo.converted_employee_id IS NOT NULL THEN 1 ELSE 0 END) AS count_hired,
+                  SUM(CASE WHEN jo.status IN ('declined', 'expired', 'withdrawn') THEN 1 ELSE 0 END) AS count_archived
              FROM job_offers jo
             WHERE jo.company_id IN ($phAcc)";
 $kpiSt = $pdo->prepare($kpiSql);
@@ -147,46 +155,110 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <h1 class="h3 mb-1">Job Offers</h1>
-            <p class="text-muted small mb-0">Manage job offers, track candidate acceptances, and onboard newly hired employees.</p>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Job Offers</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h1 class="page-header-title mb-0">Job Offers</h1>
+                <span class="badge bg-body-secondary text-body border"><?= $totalRecords ?> total offer<?= $totalRecords === 1 ? '' : 's' ?></span>
+            </div>
+            <p class="text-muted small mb-0 mt-1">Manage offer letters, track candidate acceptances, and onboard newly hired employees into active staff.</p>
         </div>
+        <div class="page-actions"></div>
     </div>
 
-    <!-- KPI Summary Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Total Offers</div>
-                    <div class="h2 mb-0 text-body"><?= (int)($kpiData['total_offers'] ?? 0) ?></div>
+    <!-- Interactive KPI Status Filter Cards (5-Column Layout) -->
+    <?php
+    $cIdParam = $companyFilter > 0 ? '&company_id=' . $companyFilter : '';
+    ?>
+    <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-5 g-3 mb-4">
+        <!-- Tab 1: All Offers -->
+        <div class="col">
+            <a href="<?= e(url('modules/offers/index.php?status=' . $cIdParam)) ?>" class="card text-decoration-none border shadow-sm h-100 transition-all <?= ($statusFilter === '' || $statusFilter === 'all') ? 'border-primary shadow bg-primary-subtle' : 'bg-body' ?>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="small text-uppercase fw-semibold <?= ($statusFilter === '' || $statusFilter === 'all') ? 'text-primary' : 'text-muted' ?>">All Offers</span>
+                        <i class="bi bi-collection <?= ($statusFilter === '' || $statusFilter === 'all') ? 'text-primary' : 'text-secondary' ?>"></i>
+                    </div>
+                    <div class="h3 mb-0 fw-bold <?= ($statusFilter === '' || $statusFilter === 'all') ? 'text-primary' : 'text-body' ?>">
+                        <?= (int)($kpiData['total_offers'] ?? 0) ?>
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.75rem;">Full offer register</div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-sm-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Sent &amp; Pending</div>
-                    <div class="h2 mb-0 text-info"><?= (int)($kpiData['count_sent'] ?? 0) ?></div>
+
+        <!-- Tab 2: Drafts -->
+        <div class="col">
+            <a href="<?= e(url('modules/offers/index.php?status=draft' . $cIdParam)) ?>" class="card text-decoration-none border shadow-sm h-100 transition-all <?= ($statusFilter === 'draft') ? 'border-secondary shadow bg-secondary-subtle' : 'bg-body' ?>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="small text-uppercase fw-semibold <?= ($statusFilter === 'draft') ? 'text-secondary-emphasis' : 'text-muted' ?>">Drafts</span>
+                        <i class="bi bi-pencil-square text-secondary"></i>
+                    </div>
+                    <div class="h3 mb-0 fw-bold <?= ($statusFilter === 'draft') ? 'text-secondary-emphasis' : 'text-body' ?>">
+                        <?= (int)($kpiData['count_draft'] ?? 0) ?>
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.75rem;">Under HR review</div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-sm-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Accepted</div>
-                    <div class="h2 mb-0 text-success"><?= (int)($kpiData['count_accepted'] ?? 0) ?></div>
+
+        <!-- Tab 3: Sent & Pending -->
+        <div class="col">
+            <a href="<?= e(url('modules/offers/index.php?status=sent' . $cIdParam)) ?>" class="card text-decoration-none border shadow-sm h-100 transition-all <?= ($statusFilter === 'sent') ? 'border-info shadow bg-info-subtle' : 'bg-body' ?>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="small text-uppercase fw-semibold <?= ($statusFilter === 'sent') ? 'text-info-emphasis' : 'text-muted' ?>">Sent</span>
+                        <i class="bi bi-send text-info"></i>
+                    </div>
+                    <div class="h3 mb-0 fw-bold <?= ($statusFilter === 'sent') ? 'text-info-emphasis' : 'text-info' ?>">
+                        <?= (int)($kpiData['count_sent'] ?? 0) ?>
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.75rem;">Awaiting candidate reply</div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-sm-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Drafts</div>
-                    <div class="h2 mb-0 text-secondary"><?= (int)($kpiData['count_draft'] ?? 0) ?></div>
+
+        <!-- Tab 4: Ready to Onboard (Accepted but unconverted) -->
+        <?php $readyCount = (int)($kpiData['count_ready_to_hire'] ?? 0); ?>
+        <div class="col">
+            <a href="<?= e(url('modules/offers/index.php?status=ready_to_hire' . $cIdParam)) ?>" class="card text-decoration-none border shadow-sm h-100 transition-all <?= ($statusFilter === 'ready_to_hire') ? 'border-success shadow bg-success-subtle' : ($readyCount > 0 ? 'border-success' : 'bg-body') ?>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="small text-uppercase fw-semibold <?= ($statusFilter === 'ready_to_hire' || $readyCount > 0) ? 'text-success' : 'text-muted' ?>">Ready to Hire</span>
+                        <i class="bi bi-person-check-fill text-success"></i>
+                    </div>
+                    <div class="h3 mb-0 fw-bold text-success">
+                        <?= $readyCount ?>
+                        <?php if ($readyCount > 0): ?>
+                            <span class="badge bg-success text-white fs-6 ms-1" style="font-size:0.7rem !important;">Action</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.75rem;">Accepted &bull; Convert now</div>
                 </div>
-            </div>
+            </a>
+        </div>
+
+        <!-- Tab 5: Hired Staff -->
+        <div class="col">
+            <a href="<?= e(url('modules/offers/index.php?status=hired' . $cIdParam)) ?>" class="card text-decoration-none border shadow-sm h-100 transition-all <?= ($statusFilter === 'hired') ? 'border-primary shadow bg-primary-subtle' : 'bg-body' ?>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="small text-uppercase fw-semibold <?= ($statusFilter === 'hired') ? 'text-primary' : 'text-muted' ?>">Hired</span>
+                        <i class="bi bi-person-badge text-primary"></i>
+                    </div>
+                    <div class="h3 mb-0 fw-bold <?= ($statusFilter === 'hired') ? 'text-primary' : 'text-body' ?>">
+                        <?= (int)($kpiData['count_hired'] ?? 0) ?>
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.75rem;">Converted to employee</div>
+                </div>
+            </a>
         </div>
     </div>
 
@@ -208,15 +280,19 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <div class="col-md-2 col-sm-6">
-                    <label class="form-label small fw-semibold">Status</label>
+                <div class="col-md-3 col-sm-6">
+                    <label class="form-label small fw-semibold">Status Category</label>
                     <select name="status" class="form-select form-select-sm">
                         <option value="">All Statuses</option>
-                        <?php foreach (offer_status_list() as $stKey => $stLbl): ?>
-                            <option value="<?= e($stKey) ?>" <?= $statusFilter === $stKey ? 'selected' : '' ?>>
-                                <?= e($stLbl) ?>
-                            </option>
-                        <?php endforeach; ?>
+                        <option value="ready_to_hire" <?= $statusFilter === 'ready_to_hire' ? 'selected' : '' ?>>⭐ Ready to Onboard (Accepted &amp; Unconverted)</option>
+                        <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>Pending Action (Draft &amp; Sent)</option>
+                        <option value="hired" <?= $statusFilter === 'hired' ? 'selected' : '' ?>>Hired (Converted to Employee)</option>
+                        <option value="draft" <?= $statusFilter === 'draft' ? 'selected' : '' ?>>Draft</option>
+                        <option value="sent" <?= $statusFilter === 'sent' ? 'selected' : '' ?>>Sent</option>
+                        <option value="accepted" <?= $statusFilter === 'accepted' ? 'selected' : '' ?>>Accepted (All)</option>
+                        <option value="declined" <?= $statusFilter === 'declined' ? 'selected' : '' ?>>Declined</option>
+                        <option value="expired" <?= $statusFilter === 'expired' ? 'selected' : '' ?>>Expired</option>
+                        <option value="withdrawn" <?= $statusFilter === 'withdrawn' ? 'selected' : '' ?>>Withdrawn</option>
                     </select>
                 </div>
 
@@ -235,15 +311,15 @@ require_once __DIR__ . '/../../includes/header.php';
                     <input type="text" name="q" class="form-control form-control-sm" placeholder="Code, Name, Vacancy..." value="<?= e($searchQ) ?>">
                 </div>
 
-                <div class="col-md-1 col-sm-6 d-flex gap-1">
-                    <button type="submit" class="btn btn-sm btn-primary w-100">
-                        <i class="bi bi-funnel"></i> Filter
-                    </button>
+                <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top">
                     <?php if ($companyFilter > 0 || $statusFilter !== '' || $dateFrom !== '' || $dateTo !== '' || $searchQ !== ''): ?>
-                        <a href="<?= e(url('modules/offers/index.php')) ?>" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
-                            <i class="bi bi-x-circle"></i>
+                        <a href="<?= e(url('modules/offers/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Reset Filters
                         </a>
                     <?php endif; ?>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="bi bi-funnel me-1"></i> Apply Filter
+                    </button>
                 </div>
             </form>
         </div>
@@ -251,110 +327,164 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <!-- Offers Table Card -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">Job Offers List</h5>
-            <span class="badge bg-body-secondary text-body border"><?= $totalRecords ?> total offer<?= $totalRecords === 1 ? '' : 's' ?></span>
+        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="card-title mb-0 fs-6 fw-bold">Job Offers Directory</h5>
+                <small class="text-muted d-block mt-0.5">
+                    <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any offer row to view full offer details.
+                </small>
+            </div>
+            <span class="badge bg-body-secondary text-body border"><?= $totalRecords ?> record<?= $totalRecords === 1 ? '' : 's' ?></span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 offers-table">
                     <thead class="table-active">
                         <tr>
-                            <th class="ps-3">Candidate</th>
-                            <th>Company &amp; Vacancy</th>
-                            <th>Role &amp; Type</th>
-                            <th>Offered Salary</th>
-                            <th>Dates</th>
-                            <th>Status</th>
-                            <th class="text-end pe-3">Action</th>
+                            <th class="ps-3" style="min-width: 200px;">Offer &amp; Candidate</th>
+                            <th style="min-width: 180px;">Company &amp; Vacancy</th>
+                            <th style="min-width: 150px;">Role</th>
+                            <th style="min-width: 120px;">Offered Salary</th>
+                            <th style="min-width: 140px;">Status</th>
+                            <th class="text-end pe-3 action-col" style="min-width: 190px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($offers)): ?>
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
-                                    <i class="bi bi-file-earmark-x fs-1 d-block mb-2"></i>
-                                    No job offers found matching your filters.
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="bi bi-file-earmark-x fs-1 d-block mb-2 text-secondary"></i>
+                                    <div class="fw-semibold">No job offers found matching your criteria.</div>
+                                    <small>Try selecting a different filter or reset all filters above.</small>
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($offers as $o): ?>
                                 <?php
                                 $offerCompanyId = (int)$o['company_id'];
-                                $canViewSalary = user_can('salary.view', $offerCompanyId);
+                                $canViewSalary  = user_can('salary.view', $offerCompanyId);
+                                $canManageOffer = user_can('offer.manage', $offerCompanyId);
+                                $isAccepted     = ((string)$o['status'] === 'accepted');
+                                $isHired        = !empty($o['converted_employee_id']);
+                                $isReadyToHire  = ($isAccepted && !$isHired);
+                                $isExpiredDate  = (!empty($o['expiry_date']) && $o['expiry_date'] < date('Y-m-d') && in_array($o['status'], ['draft', 'sent'], true));
+                                $viewUrl        = url('modules/offers/view.php?id=' . (int)$o['id']);
                                 ?>
-                                <tr>
-                                    <td class="ps-3">
-                                        <div class="fw-semibold text-body">
-                                            <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$o['candidate_id'])) ?>" class="text-decoration-none">
-                                                <?= e($o['first_name'] . ' ' . $o['last_name']) ?>
-                                            </a>
-                                        </div>
-                                        <div class="small text-muted">
-                                            Code: <span class="fw-medium text-primary"><?= e($o['candidate_code']) ?></span>
+                                <tr class="<?= $isReadyToHire ? 'table-success-subtle' : '' ?> offer-row"
+                                    data-href="<?= e($viewUrl) ?>"
+                                    title="Double-click to view offer #<?= (int)$o['id'] ?>">
+                                    <!-- Offer & Candidate -->
+                                    <td class="ps-3 offer-candidate-cell">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-body-secondary text-body border font-monospace" title="Offer ID">#<?= (int)$o['id'] ?></span>
+                                            <div>
+                                                <a href="<?= e($viewUrl) ?>" class="fw-bold text-decoration-none text-body offer-title-link">
+                                                    <?= e($o['first_name'] . ' ' . $o['last_name']) ?>
+                                                </a>
+                                                <div class="small text-muted font-monospace"><?= e($o['candidate_code']) ?></div>
+                                            </div>
                                         </div>
                                     </td>
+
+                                    <!-- Company & Vacancy -->
                                     <td>
-                                        <div>
-                                            <span class="badge bg-body-secondary text-body border me-1"><?= e($o['company_code']) ?></span>
-                                            <a href="<?= e(url('modules/vacancies/view.php?id=' . (int)$o['vacancy_id'])) ?>" class="text-decoration-none fw-medium text-body">
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <span class="badge bg-body-secondary text-body border font-monospace"><?= e($o['company_code']) ?></span>
+                                            <a href="<?= e($viewUrl) ?>" class="text-decoration-none fw-semibold text-body">
                                                 <?= e($o['vacancy_title']) ?>
                                             </a>
                                         </div>
-                                        <div class="small text-muted"><?= e($o['vacancy_code']) ?></div>
                                     </td>
+
+                                    <!-- Role -->
                                     <td>
-                                        <div class="fw-medium text-body"><?= e($o['designation_title'] ?? 'Unassigned Designation') ?></div>
-                                        <div class="small text-muted">
-                                            <?= e($o['department_name'] ?? 'General') ?> &bull; <?= e($empTypes[$o['employment_type']] ?? ucfirst($o['employment_type'])) ?>
-                                        </div>
+                                        <div class="fw-semibold text-body"><?= e($o['designation_title'] ?? 'General Role') ?></div>
                                     </td>
+
+                                    <!-- Offered Salary -->
                                     <td>
                                         <?php if ($canViewSalary): ?>
                                             <?php if ($o['offered_salary'] !== null): ?>
-                                                <span class="fw-semibold text-body"><?= e(format_currency((float)$o['offered_salary'])) ?></span>
+                                                <div class="fw-bold text-success"><?= e(format_currency((float)$o['offered_salary'])) ?></div>
+                                                <small class="text-muted">/ month</small>
                                             <?php else: ?>
                                                 <span class="text-muted small">Not specified</span>
                                             <?php endif; ?>
                                         <?php else: ?>
-                                            <span class="text-muted small fst-italic">Confidential</span>
+                                            <span class="text-muted small fst-italic"><i class="bi bi-shield-lock me-1"></i>Confidential</span>
                                         <?php endif; ?>
                                     </td>
+
+                                    <!-- Status Badge -->
                                     <td>
-                                        <div class="small">
-                                            <span class="text-muted">Offered:</span> <?= e(format_date($o['offer_date'])) ?>
-                                        </div>
-                                        <?php if (!empty($o['expiry_date'])): ?>
-                                            <div class="small">
-                                                <span class="text-muted">Expiry:</span> <?= e(format_date($o['expiry_date'])) ?>
+                                        <?php if ($isReadyToHire): ?>
+                                            <span class="badge text-bg-success shadow-sm">
+                                                <i class="bi bi-person-check-fill me-1"></i>Ready to Onboard
+                                            </span>
+                                            <div class="small text-success mt-1" style="font-size:0.75rem;">
+                                                <i class="bi bi-clock-history me-1"></i>Awaiting Conversion
                                             </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($o['proposed_join_date'])): ?>
-                                            <div class="small text-muted">
-                                                Join: <?= e(format_date($o['proposed_join_date'])) ?>
-                                            </div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?= offer_status_badge($o['status']) ?>
-                                        <?php if (!empty($o['converted_employee_id'])): ?>
+                                        <?php elseif ($isHired): ?>
+                                            <span class="badge text-bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-check2-all me-1"></i>Hired
+                                            </span>
                                             <div class="mt-1">
-                                                <a href="<?= e(url('modules/employees/view.php?id=' . (int)$o['converted_employee_id'])) ?>" class="badge text-bg-success-subtle text-success text-decoration-none border border-success-subtle" title="Converted to Employee">
-                                                    <i class="bi bi-person-check me-1"></i>Hired (<?= e($o['converted_emp_code'] ?? 'EMP') ?>)
+                                                <a href="<?= e(url('modules/employees/view.php?id=' . (int)$o['converted_employee_id'])) ?>" class="badge bg-body-secondary text-body border text-decoration-none font-monospace" title="View Employee Profile">
+                                                    <?= e($o['converted_emp_code'] ?? 'EMP') ?> &rarr;
                                                 </a>
                                             </div>
+                                        <?php else: ?>
+                                            <?= offer_status_badge($o['status']) ?>
+                                            <?php if ($isExpiredDate): ?>
+                                                <div class="badge text-bg-danger mt-1" style="font-size:0.7rem;">Expired Date</div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="<?= e(url('modules/offers/view.php?id=' . (int)$o['id'])) ?>" class="btn btn-outline-primary" title="View Offer Details">
-                                                View
+
+                                    <!-- Contextual Primary Action & Secondary Kebab -->
+                                    <td class="text-end pe-3 action-col">
+                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                            <a href="<?= e($viewUrl) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5 text-nowrap" title="View full offer details">
+                                                <i class="bi bi-eye me-1"></i>View
                                             </a>
-                                            <?php if ($o['status'] === 'accepted' && empty($o['converted_employee_id']) && user_can('offer.manage', $offerCompanyId)): ?>
-                                                <a href="<?= e(url('modules/offers/view.php?id=' . (int)$o['id'] . '#convert')) ?>" class="btn btn-success" title="Convert to Employee">
-                                                    Convert
-                                                </a>
-                                            <?php endif; ?>
+
+                                            <!-- 3-Dot Action Kebab Menu -->
+                                            <?= action_menu([
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'View Full Offer Details',
+                                                    'url'        => 'modules/offers/view.php?id=' . (int)$o['id'],
+                                                    'icon'       => 'bi-eye',
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Candidate Profile',
+                                                    'url'        => 'modules/candidates/view.php?id=' . (int)$o['candidate_id'],
+                                                    'icon'       => 'bi-person',
+                                                    'permission' => user_can('candidate.view'),
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Vacancy Pipeline Board',
+                                                    'url'        => 'modules/vacancies/pipeline.php?id=' . (int)$o['vacancy_id'],
+                                                    'icon'       => 'bi-kanban',
+                                                    'permission' => user_can('vacancy.view'),
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Convert to Employee Record',
+                                                    'url'        => 'modules/offers/convert.php?offer_id=' . (int)$o['id'],
+                                                    'icon'       => 'bi-person-check',
+                                                    'permission' => ($isReadyToHire && $canManageOffer),
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Employee Profile',
+                                                    'url'        => 'modules/employees/view.php?id=' . (int)$o['converted_employee_id'],
+                                                    'icon'       => 'bi-person-badge',
+                                                    'permission' => ($isHired && !empty($o['converted_employee_id']) && user_can('employee.view')),
+                                                ],
+                                            ]) ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -374,4 +504,19 @@ require_once __DIR__ . '/../../includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<style>
+.offers-table .offer-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+.offers-table .offer-row:hover > td {
+    background-color: var(--bs-table-hover-bg);
+}
+.offers-table .offer-candidate-cell:hover .offer-title-link {
+    text-decoration: underline !important;
+    color: var(--bs-primary) !important;
+}
+</style>
+
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

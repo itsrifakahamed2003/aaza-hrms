@@ -43,7 +43,9 @@ function current_user(bool $reload = false): ?array
 function reset_session(): void
 {
     $_SESSION = [];
-    session_regenerate_id(true);
+    if (!headers_sent()) {
+        session_regenerate_id(true);
+    }
 }
 
 function session_is_valid(): bool

@@ -72,66 +72,81 @@ $types = employment_type_list();
 $pageTitle = 'Vacancy: ' . ($vacancy['vacancy_code'] ?? '');
 require_once __DIR__ . '/../../includes/header.php';
 ?>
-<div class="container-fluid py-4">
-    <!-- Breadcrumb & Top Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item"><a href="<?= e(url('modules/vacancies/index.php')) ?>">Vacancies</a></li>
-                    <li class="breadcrumb-item active" aria-current="page"><?= e($vacancy['vacancy_code']) ?></li>
-                </ol>
-            </nav>
-            <div class="d-flex align-items-center gap-3">
-                <h1 class="h3 mb-0"><?= e($vacancy['title']) ?></h1>
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="<?= e(url('modules/vacancies/index.php')) ?>">Vacancies</a></li>
+            <li class="breadcrumb-item active" aria-current="page"><?= e($vacancy['vacancy_code']) ?></li>
+        </ol>
+    </nav>
+
+    <!-- Detail Header -->
+    <div class="detail-header">
+        <div class="detail-header-main">
+            <div class="detail-header-title-row">
+                <h1 class="detail-header-title"><?= e($vacancy['title']) ?></h1>
+                <span class="badge bg-body-secondary text-body border font-monospace"><?= e($vacancy['vacancy_code']) ?></span>
                 <?= vacancy_status_badge($vacancy['status']) ?>
             </div>
+            <p class="detail-header-subtitle">
+                <span class="badge bg-body-secondary text-body border font-monospace"><?= e($vacancy['company_code']) ?></span> <?= e($vacancy['company_name']) ?>
+                <?php if (!empty($vacancy['department_name'])): ?> &bull; <?= e($vacancy['department_name']) ?><?php endif; ?>
+                &bull; <?= (int)$vacancy['positions_count'] ?> position(s) &bull; Posted <?= e(format_datetime($vacancy['created_at'])) ?>
+            </p>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . $id)) ?>" class="btn btn-outline-primary">
-                <i class="bi bi-kanban"></i> Pipeline Kanban
+
+        <div class="detail-header-actions">
+            <!-- ONE Primary Button -->
+            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . $id)) ?>" class="btn btn-primary btn-sm">
+                <i class="bi bi-kanban me-1"></i> Pipeline Board
             </a>
-            <?php if ($canManageCandidates): ?>
-                <a href="<?= e(url('modules/candidates/apply.php?vacancy_id=' . $id)) ?>" class="btn btn-success">
-                    + Add Applicant
-                </a>
-            <?php endif; ?>
-            <?php if ($canManage): ?>
-                <a href="<?= e(url('modules/vacancies/form.php?id=' . $id)) ?>" class="btn btn-secondary">
-                    Edit Vacancy
-                </a>
-            <?php endif; ?>
-            <?php if (is_group_admin() && user_can('vacancy.delete')): ?>
-                <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteVacancy(<?= $id ?>, '<?= e(addslashes((string)($vacancy['title'] ?? ''))) ?>')">
-                    <i class="bi bi-trash me-1"></i> Delete Vacancy
-                </button>
-                <form method="post" action="<?= e(url('modules/vacancies/delete.php')) ?>" id="deleteVacancyForm" class="d-none">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="id" value="<?= $id ?>">
-                </form>
-                <script>
-                function confirmDeleteVacancy(id, title) {
-                    if (typeof showConfirmModal === 'function') {
-                        showConfirmModal({
-                            title: 'Delete Vacancy',
-                            message: 'Are you sure you want to permanently delete vacancy "' + title + '"? This vacancy must be closed or cancelled and have no active applications. This action cannot be undone.',
-                            confirmText: 'Delete Vacancy',
-                            variant: 'danger',
-                            onConfirm: function() {
-                                document.getElementById('deleteVacancyForm').submit();
-                            }
-                        });
-                    } else if (confirm('Are you sure you want to permanently delete vacancy "' + title + '"?')) {
-                        document.getElementById('deleteVacancyForm').submit();
-                    }
-                }
-                </script>
-            <?php endif; ?>
+
+            <!-- ONE "More" 3-dot menu -->
+            <?php
+            $vacMore = [];
+            if ($canManage) {
+                $vacMore[] = [
+                    'type' => 'link',
+                    'icon' => 'bi-pencil',
+                    'label' => 'Edit Vacancy',
+                    'url' => 'modules/vacancies/form.php?id=' . $id,
+                ];
+            }
+            if ($canManageCandidates) {
+                $vacMore[] = [
+                    'type' => 'link',
+                    'icon' => 'bi-plus-lg',
+                    'label' => 'Add Applicant',
+                    'url' => 'modules/candidates/apply.php?vacancy_id=' . $id,
+                ];
+            }
+            $vacMore[] = [
+                'type' => 'link',
+                'icon' => 'bi-arrow-left',
+                'label' => 'Back to Vacancies',
+                'url' => 'modules/vacancies/index.php',
+            ];
+            if (is_group_admin() && user_can('vacancy.delete')) {
+                $vacMore[] = [
+                    'type' => 'button',
+                    'icon' => 'bi-trash',
+                    'label' => 'Delete Vacancy',
+                    'onclick' => 'confirmDeleteVacancy(' . $id . ', \'' . e(addslashes((string)($vacancy['title'] ?? ''))) . '\')',
+                    'danger' => true,
+                ];
+            }
+            echo action_menu($vacMore, [
+                'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+                'aria_label' => 'More vacancy actions',
+            ]);
+            ?>
         </div>
     </div>
 
     <!-- Pipeline Stage Counters Banner -->
-    <div class="row g-2 mb-4">
+    <div class="row g-2 mb-3">
         <?php foreach (pipeline_stages() as $stgKey => $stgLabel): ?>
             <div class="col-6 col-sm-4 col-md-2">
                 <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . $id . '#' . $stgKey)) ?>" class="text-decoration-none">
@@ -146,103 +161,96 @@ require_once __DIR__ . '/../../includes/header.php';
         <?php endforeach; ?>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-3 align-items-start">
         <!-- Main Details Column -->
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-body py-3">
-                    <h5 class="card-title mb-0">Role Overview & Details</h5>
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Role Overview &amp; Details</span>
+                    <span class="badge bg-body-secondary text-body border font-monospace"><?= e($vacancy['vacancy_code']) ?></span>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3 mb-4">
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Vacancy Code</div>
-                            <div class="fw-semibold text-primary"><?= e($vacancy['vacancy_code']) ?></div>
+                    <div class="kv-list">
+                        <div class="kv-item">
+                            <span class="kv-label">Company</span>
+                            <span class="kv-value"><?= e($vacancy['company_name']) ?> (<?= e($vacancy['company_code']) ?>)</span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Company</div>
-                            <div class="fw-semibold"><?= e($vacancy['company_name']) ?> (<?= e($vacancy['company_code']) ?>)</div>
+                        <div class="kv-item">
+                            <span class="kv-label">Department</span>
+                            <span class="kv-value"><?= e($vacancy['department_name'] ?? 'Not specified') ?></span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Department</div>
-                            <div class="fw-semibold"><?= e($vacancy['department_name'] ?? 'Not specified') ?></div>
+                        <div class="kv-item">
+                            <span class="kv-label">Designation</span>
+                            <span class="kv-value fw-semibold"><?= e($vacancy['designation_title'] ?? 'Not specified') ?></span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Designation</div>
-                            <div class="fw-semibold"><?= e($vacancy['designation_title'] ?? 'Not specified') ?></div>
+                        <div class="kv-item">
+                            <span class="kv-label">Employment Type</span>
+                            <span class="kv-value">
+                                <span class="badge bg-body-secondary text-body border"><?= e($types[$vacancy['employment_type']] ?? ucfirst($vacancy['employment_type'])) ?></span>
+                            </span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Employment Type</div>
-                            <div class="fw-semibold"><?= e($types[$vacancy['employment_type']] ?? ucfirst($vacancy['employment_type'])) ?></div>
+                        <div class="kv-item">
+                            <span class="kv-label">Positions Needed</span>
+                            <span class="kv-value"><?= (int)$vacancy['positions_count'] ?> vacancy position(s)</span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Positions Needed</div>
-                            <div class="fw-semibold"><?= (int)$vacancy['positions_count'] ?> vacancy position(s)</div>
-                        </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Positions Filled</div>
-                            <div class="fw-semibold text-body">
+                        <div class="kv-item">
+                            <span class="kv-label">Positions Filled</span>
+                            <span class="kv-value">
                                 <span class="text-success fw-bold"><?= $hiredCount ?></span> / <?= $positionsCount ?> hired
                                 <?php if ($positionsCount > 0 && $hiredCount >= $positionsCount): ?>
                                     <span class="badge badge-soft-success ms-1">Fully Filled</span>
                                 <?php elseif ($positionsCount > 0 && $hiredCount > 0): ?>
                                     <span class="badge badge-soft-info ms-1"><?= round(($hiredCount / $positionsCount) * 100) ?>%</span>
                                 <?php endif; ?>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Closing Date</div>
-                            <div class="fw-semibold">
+                        <div class="kv-item">
+                            <span class="kv-label">Closing Date</span>
+                            <span class="kv-value">
                                 <?php if (!empty($vacancy['closing_date'])): ?>
                                     <?= e(format_date($vacancy['closing_date'])) ?>
                                     <?php if ($vacancy['closing_date'] < date('Y-m-d')): ?>
                                         <span class="badge badge-soft-danger ms-1">Closed / Expired</span>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="text-muted">No deadline specified</span>
+                                    —
                                 <?php endif; ?>
-                            </div>
+                            </span>
                         </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Posted By</div>
-                            <div class="fw-semibold"><?= e($vacancy['creator_name'] ?? 'System') ?></div>
-                        </div>
-                        <div class="col-sm-6 col-md-4">
-                            <div class="text-muted small">Date Posted</div>
-                            <div class="fw-semibold"><?= e(format_datetime($vacancy['created_at'])) ?></div>
+                        <div class="kv-item">
+                            <span class="kv-label">Posted By</span>
+                            <span class="kv-value"><?= e($vacancy['creator_name'] ?? 'System') ?></span>
                         </div>
                     </div>
 
                     <?php if (!empty($vacancy['description'])): ?>
-                        <div class="mb-4">
-                            <h6 class="fw-bold text-body border-bottom pb-2">Job Description</h6>
-                            <div class="text-secondary" style="white-space: pre-line;"><?= e($vacancy['description']) ?></div>
+                        <div class="mt-3 pt-3 border-top">
+                            <h6 class="fw-bold text-body small text-uppercase mb-2">Job Description</h6>
+                            <div class="text-secondary small" style="white-space: pre-line;"><?= e($vacancy['description']) ?></div>
                         </div>
                     <?php endif; ?>
 
                     <?php if (!empty($vacancy['requirements'])): ?>
-                        <div>
-                            <h6 class="fw-bold text-body border-bottom pb-2">Requirements & Qualifications</h6>
-                            <div class="text-secondary" style="white-space: pre-line;"><?= e($vacancy['requirements']) ?></div>
+                        <div class="mt-3 pt-3 border-top">
+                            <h6 class="fw-bold text-body small text-uppercase mb-2">Requirements &amp; Qualifications</h6>
+                            <div class="text-secondary small" style="white-space: pre-line;"><?= e($vacancy['requirements']) ?></div>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
 
             <!-- Applications List for this Vacancy -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
-                        Applicants (<?= count($applications) ?>)
-                    </h5>
-                    <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . $id)) ?>" class="btn btn-sm btn-outline-primary">
-                        Open Pipeline View &rarr;
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Applicants (<?= count($applications) ?>)</span>
+                    <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . $id)) ?>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.8rem;">
+                        Pipeline View &rarr;
                     </a>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-active">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
+                            <thead class="table-light">
                                 <tr>
                                     <th class="ps-3">Candidate</th>
                                     <th>Contact</th>
@@ -250,7 +258,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <th>Applied On</th>
                                     <th>Status</th>
                                     <th>CV</th>
-                                    <th class="text-end pe-3">Action</th>
+                                    <th class="text-end pe-3 text-nowrap" style="width: 100px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -274,7 +282,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                                 <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$app['candidate_id'])) ?>" class="fw-semibold text-decoration-none">
                                                     <?= e($app['first_name'] . ' ' . $app['last_name']) ?>
                                                 </a>
-                                                <div class="small text-muted"><?= e($app['candidate_code']) ?></div>
+                                                <div class="small text-muted font-monospace"><?= e($app['candidate_code']) ?></div>
                                             </td>
                                             <td>
                                                 <div class="small"><?= e($app['email'] ?? '—') ?></div>
@@ -295,11 +303,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                                         CV
                                                     </a>
                                                 <?php else: ?>
-                                                    <span class="text-muted small">None</span>
+                                                    <span class="text-muted small">—</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td class="text-end pe-3">
-                                                <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$app['candidate_id'])) ?>" class="btn btn-sm btn-outline-primary">
+                                                <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$app['candidate_id'])) ?>" class="btn btn-sm btn-outline-primary text-nowrap">
                                                     Profile
                                                 </a>
                                             </td>
@@ -315,24 +323,21 @@ require_once __DIR__ . '/../../includes/header.php';
 
         <!-- Sidebar / Actions Column -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-body py-3">
-                    <h6 class="card-title mb-0">Pipeline Quick Actions</h6>
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Quick Candidate Actions</span>
                 </div>
                 <div class="card-body">
                     <p class="small text-muted mb-3">
-                        Move candidates across hiring stages, review resumes, record feedback, and track full applicant history.
+                        Assign an existing registered candidate or register a new candidate directly to this vacancy.
                     </p>
                     <div class="d-grid gap-2">
-                        <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . $id)) ?>" class="btn btn-primary">
-                            Visual Pipeline Board
-                        </a>
                         <?php if ($canManageCandidates): ?>
-                            <a href="<?= e(url('modules/candidates/apply.php?vacancy_id=' . $id)) ?>" class="btn btn-outline-success">
-                                Assign Existing Candidate
+                            <a href="<?= e(url('modules/candidates/apply.php?vacancy_id=' . $id)) ?>" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-person-plus me-1"></i> Assign Existing Candidate
                             </a>
-                            <a href="<?= e(url('modules/candidates/form.php')) ?>" class="btn btn-outline-secondary">
-                                Register New Candidate
+                            <a href="<?= e(url('modules/candidates/form.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-person-badge me-1"></i> Register New Candidate
                             </a>
                         <?php endif; ?>
                     </div>

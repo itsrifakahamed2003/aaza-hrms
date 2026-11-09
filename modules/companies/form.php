@@ -153,8 +153,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = $editing ? 'Edit company' : 'Add company';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
+<div class="page-header mb-3">
+    <div class="page-header-title-block">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb breadcrumb-clean mb-1">
                 <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
@@ -164,9 +164,11 @@ require __DIR__ . '/../../includes/header.php';
         </nav>
         <h1 class="page-header-title mb-0"><?= e($pageTitle) ?></h1>
     </div>
-    <a class="btn btn-outline-secondary" href="<?= e(url('modules/companies/index.php')) ?>">
-        <i class="bi bi-arrow-left me-1"></i>Back
-    </a>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" href="<?= e(url('modules/companies/index.php')) ?>">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+    </div>
 </div>
 
 <?php if ($errors): ?>

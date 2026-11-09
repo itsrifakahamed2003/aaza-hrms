@@ -146,18 +146,18 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="container-fluid py-4">
     <!-- Breadcrumb & Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Interviews</li>
                 </ol>
             </nav>
-            <h1 class="h3 fw-bold mb-0 text-body">Interview Management</h1>
-            <p class="text-muted small mb-0">Multi-company recruitment interview schedule, panel tracking, and candidate evaluations.</p>
+            <h1 class="page-header-title mb-0">Interview Management</h1>
+            <p class="page-header-desc text-muted small mb-0">Multi-company recruitment interview schedule, panel tracking, and candidate evaluations.</p>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="page-header-actions page-actions">
             <div class="btn-group btn-group-sm" role="group" aria-label="View Toggle">
                 <a href="<?= e(url('modules/interviews/index.php')) ?>" class="btn btn-primary active" aria-current="page">
                     <i class="bi bi-list-ul me-1"></i>List
@@ -246,10 +246,15 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <!-- Interviews List Table -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0 fw-semibold">
-                Scheduled Interviews <span class="badge bg-body-secondary text-body border ms-1"><?= $total ?></span>
-            </h5>
+        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="card-title mb-0 fw-semibold fs-6">
+                    Scheduled Interviews <span class="badge bg-body-secondary text-body border ms-1"><?= $total ?></span>
+                </h5>
+                <small class="text-muted d-block mt-0.5">
+                    <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any interview row to view session details.
+                </small>
+            </div>
             <small class="text-muted">Showing page <?= $pagination['page'] ?> of <?= max(1, $pagination['pages']) ?></small>
         </div>
         <div class="card-body p-0">
@@ -270,7 +275,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <th>Date &amp; Time</th>
                                 <th>Panel Members</th>
                                 <th>Status</th>
-                                <th class="text-end pe-3">Actions</th>
+                                <th class="text-end pe-3 action-col">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -279,11 +284,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                 $typeLabels = interview_type_list();
                                 $typeText = $typeLabels[$item['interview_type']] ?? ucfirst($item['interview_type']);
                                 $isPast = strtotime((string)$item['scheduled_at']) < time();
+                                $intViewUrl = url('modules/interviews/view.php?id=' . (int)$item['id']);
                                 ?>
-                                <tr>
+                                <tr class="clickable-row interview-row" data-href="<?= e($intViewUrl) ?>" title="Double-click to view interview round <?= (int)$item['round_no'] ?>">
                                     <td class="ps-3">
                                         <div>
-                                            <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$item['candidate_id'])) ?>" class="fw-semibold text-body text-decoration-none">
+                                            <a href="<?= e($intViewUrl) ?>" class="fw-semibold text-body text-decoration-none">
                                                 <?= e($item['first_name'] . ' ' . $item['last_name']) ?>
                                             </a>
                                         </div>
@@ -292,7 +298,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <td>
                                         <div>
                                             <span class="badge bg-body-secondary text-body border me-1"><?= e($item['company_code']) ?></span>
-                                            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$item['vacancy_id'])) ?>" class="text-decoration-none text-body">
+                                            <a href="<?= e($intViewUrl) ?>" class="text-decoration-none text-body">
                                                 <?= e($item['vacancy_title']) ?>
                                             </a>
                                         </div>
@@ -328,18 +334,35 @@ require_once __DIR__ . '/../../includes/header.php';
                                             </span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <div class="btn-group btn-group-sm">
+                                    <td class="text-end pe-3 action-col">
+                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
                                             <a href="<?= e(url('modules/interviews/view.php?id=' . (int)$item['id'])) ?>"
-                                               class="btn btn-outline-primary" title="View Interview Details">
+                                               class="btn btn-sm btn-outline-primary py-1 px-2.5" title="View interview details">
                                                 <i class="bi bi-eye me-1"></i>View
                                             </a>
-                                            <?php if (!empty($item['user_is_panel']) && empty($item['user_evaluated']) && $isPast && $item['status'] !== 'cancelled'): ?>
-                                                <a href="<?= e(url('modules/interviews/evaluate.php?id=' . (int)$item['id'])) ?>"
-                                                   class="btn btn-outline-success" title="Submit Evaluation">
-                                                    <i class="bi bi-pencil-square me-1"></i>Evaluate
-                                                </a>
-                                            <?php endif; ?>
+                                            <?= action_menu([
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Candidate Profile',
+                                                    'url'        => 'modules/candidates/view.php?id=' . (int)$item['candidate_id'],
+                                                    'icon'       => 'bi-person',
+                                                    'permission' => user_can('candidate.view'),
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Pipeline Kanban',
+                                                    'url'        => 'modules/vacancies/pipeline.php?id=' . (int)$item['vacancy_id'],
+                                                    'icon'       => 'bi-kanban',
+                                                    'permission' => user_can('vacancy.view'),
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Submit Evaluation',
+                                                    'url'        => 'modules/interviews/evaluate.php?id=' . (int)$item['id'],
+                                                    'icon'       => 'bi-pencil-square',
+                                                    'permission' => (!empty($item['user_is_panel']) && empty($item['user_evaluated']) && $isPast && $item['status'] !== 'cancelled'),
+                                                ],
+                                            ]) ?>
                                         </div>
                                     </td>
                                 </tr>

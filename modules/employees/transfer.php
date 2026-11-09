@@ -319,16 +319,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Transfer employee: ' . $emp['first_name'] . ' ' . $emp['last_name'];
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h4 mb-0"><?= e($pageTitle) ?></h1>
+<div class="page-header mb-3">
+    <div class="page-header-title-block">
+        <h1 class="page-header-title h4 mb-0"><?= e($pageTitle) ?></h1>
         <p class="text-muted mb-0 small">
             Inter-company transfer across the AaZa Group. Full employment history will be preserved.
         </p>
     </div>
-    <a class="btn btn-outline-secondary" href="<?= e(url('modules/employees/view.php?id=' . $id)) ?>">
-        &larr; Back to profile
-    </a>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" href="<?= e(url('modules/employees/view.php?id=' . $id)) ?>">
+            &larr; Back to profile
+        </a>
+    </div>
 </div>
 
 <?php if ($errors): ?>

@@ -150,8 +150,8 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="container-fluid py-4">
     <!-- Breadcrumb & Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
@@ -159,10 +159,10 @@ require_once __DIR__ . '/../../includes/header.php';
                     <li class="breadcrumb-item active" aria-current="page">Calendar</li>
                 </ol>
             </nav>
-            <h1 class="h3 fw-bold mb-0 text-body">Interview Calendar</h1>
+            <h1 class="page-header-title h3 fw-bold mb-0 text-body">Interview Calendar</h1>
             <p class="text-muted small mb-0">Multi-company recruitment schedule and interview agenda.</p>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="page-actions">
             <!-- View Toggle Button Group (List / Calendar) -->
             <div class="btn-group btn-group-sm" role="group" aria-label="View Toggle">
                 <a href="<?= e(url('modules/interviews/index.php')) ?>" class="btn btn-outline-secondary">

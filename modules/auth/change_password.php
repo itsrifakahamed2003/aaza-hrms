@@ -82,7 +82,24 @@ $pageTitle = 'Change Password';
 require __DIR__ . '/../../includes/header.php';
 ?>
 
-<div class="row justify-content-center py-4">
+<div class="page-header mb-3">
+    <div class="page-header-title-block">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb breadcrumb-clean mb-1">
+                <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Change Password</li>
+            </ol>
+        </nav>
+        <h1 class="page-header-title mb-0">Change Password</h1>
+    </div>
+    <div class="page-actions">
+        <a href="<?= e(url('public/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center py-2">
     <div class="col-md-7 col-lg-5">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-body border-bottom py-3">

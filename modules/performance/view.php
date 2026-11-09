@@ -133,61 +133,93 @@ $canReopen = can_user_reopen_performance_review($pdo, $currentUserId, $review);
 $pageTitle = 'Review - ' . $empName . ' (' . $review['period_label'] . ')';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
-<div class="mb-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb breadcrumb-clean mb-1">
-            <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/performance/index.php')) ?>">Performance</a></li>
-            <li class="breadcrumb-item active" aria-current="page"><?= e($empName) ?> &middot; <?= e($review['period_label']) ?></li>
-        </ol>
-    </nav>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="d-flex align-items-center gap-3">
-            <div class="avatar-circle bg-primary-subtle text-primary fw-bold fs-4 d-flex align-items-center justify-content-center shadow-sm"
-                 style="width: 54px; height: 54px; border-radius: 50%;">
-                <?= e(strtoupper(substr($review['first_name'], 0, 1) . substr($review['last_name'], 0, 1))) ?>
-            </div>
-            <div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <h1 class="page-header-title mb-0"><?= e($empName) ?></h1>
-                    <span class="badge bg-body-secondary text-body border font-monospace"><?= e($review['employee_code']) ?></span>
-                    <?= performance_status_badge((string)$review['status']) ?>
-                </div>
-                <div class="text-muted small mt-1">
-                    <?= e($review['designation_title'] ?? 'Staff') ?> &bull; <?= e($review['department_name'] ?? 'General') ?>
-                    &bull; <span class="fw-semibold text-body"><?= e($review['company_name']) ?></span>
-                </div>
-            </div>
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="<?= e(url('modules/performance/index.php')) ?>">Performance</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><?= e($empName) ?> &middot; <?= e($review['period_label']) ?></li>
+    </ol>
+</nav>
+
+<!-- Detail Header -->
+<div class="detail-header">
+    <div class="detail-header-main d-flex align-items-center gap-3">
+        <div class="avatar-circle bg-primary-subtle text-primary fw-bold fs-4 d-flex align-items-center justify-content-center shadow-sm flex-shrink-0"
+             style="width: 52px; height: 52px; border-radius: 50%;">
+            <?= e(strtoupper(substr($review['first_name'], 0, 1) . substr($review['last_name'], 0, 1))) ?>
         </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-            <a href="<?= e(url('modules/performance/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>List
-            </a>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-                <i class="bi bi-printer me-1"></i>Print
-            </button>
-            <?php if ($canEdit): ?>
-                <a href="<?= e(url('modules/performance/form.php?id=' . $id)) ?>" class="btn btn-primary btn-sm">
-                    <i class="bi bi-pencil me-1"></i>Edit Review
-                </a>
-            <?php endif; ?>
-            <?php if ($canAcknowledge): ?>
-                <form method="post" action="<?= e(url('modules/performance/view.php?id=' . $id)) ?>" class="d-inline"
-                      data-confirm="Acknowledge your performance review? Once acknowledged, your feedback will be finalized."
-                      data-confirm-type="success">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="acknowledge">
-                    <button type="submit" class="btn btn-success btn-sm">
-                        <i class="bi bi-check2-circle me-1"></i>Acknowledge Review
-                    </button>
-                </form>
-            <?php endif; ?>
-            <?php if ($canReopen): ?>
-                <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#reopenModal">
-                    <i class="bi bi-unlock me-1"></i>Reopen Review
+        <div>
+            <div class="detail-header-title-row">
+                <h1 class="detail-header-title"><?= e($empName) ?></h1>
+                <span class="badge bg-body-secondary text-body border font-monospace"><?= e($review['employee_code']) ?></span>
+                <?= performance_status_badge((string)$review['status']) ?>
+            </div>
+            <p class="detail-header-subtitle">
+                <?= e($review['designation_title'] ?? 'Staff') ?> &bull; <?= e($review['department_name'] ?? 'General') ?>
+                &bull; <span class="fw-semibold text-body"><?= e($review['company_name']) ?></span> &bull; Period: <?= e($review['period_label']) ?>
+            </p>
+        </div>
+    </div>
+
+    <div class="detail-header-actions">
+        <!-- ONE Primary Button -->
+        <?php if ($canAcknowledge): ?>
+            <form method="post" action="<?= e(url('modules/performance/view.php?id=' . $id)) ?>" class="d-inline"
+                  data-confirm="Acknowledge your performance review? Once acknowledged, your feedback will be finalized."
+                  data-confirm-type="success">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="acknowledge">
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="bi bi-check2-circle me-1"></i> Acknowledge Review
                 </button>
-            <?php endif; ?>
-        </div>
+            </form>
+        <?php elseif ($canEdit): ?>
+            <a href="<?= e(url('modules/performance/form.php?id=' . $id)) ?>" class="btn btn-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i> Edit Review
+            </a>
+        <?php else: ?>
+            <a href="<?= e(url('modules/performance/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Performance List
+            </a>
+        <?php endif; ?>
+
+        <!-- ONE "More" 3-dot menu -->
+        <?php
+        $perfMore = [];
+        $perfMore[] = [
+            'type' => 'button',
+            'icon' => 'bi-printer',
+            'label' => 'Print Appraisal',
+            'onclick' => 'window.print()',
+        ];
+        if ($canReopen) {
+            $perfMore[] = [
+                'type' => 'button',
+                'icon' => 'bi-unlock',
+                'label' => 'Reopen Review',
+                'modal' => '#reopenModal',
+            ];
+        }
+        if ($canEdit && $canAcknowledge) {
+            $perfMore[] = [
+                'type' => 'link',
+                'icon' => 'bi-pencil',
+                'label' => 'Edit Review',
+                'url' => 'modules/performance/form.php?id=' . $id,
+            ];
+        }
+        $perfMore[] = [
+            'type' => 'link',
+            'icon' => 'bi-arrow-left',
+            'label' => 'Back to List',
+            'url' => 'modules/performance/index.php',
+        ];
+        echo action_menu($perfMore, [
+            'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+            'aria_label' => 'More performance actions',
+        ]);
+        ?>
     </div>
 </div>
 

@@ -106,119 +106,168 @@ if ($canManage) {
     $eligibleInterviewers = $pSt->fetchAll();
 }
 
+$canCandidateManage = user_can('candidate.manage', $companyId);
+$canEmailCandidate  = $canCandidateManage || $canManage || user_can('interview.schedule', $companyId);
+$candidateHasEmail  = trim((string)($interview['candidate_email'] ?? '')) !== '';
+$mailIsConfigured   = mail_is_configured();
+$emailTemplateLabels = [
+    'application_received' => 'Application received',
+    'shortlisted'          => 'Shortlisted',
+    'interview_invite'     => 'Interview invite',
+    'selected'             => 'Selected',
+    'rejected'             => 'Rejected',
+    'offer_sent'           => 'Offer',
+];
+
 $pageTitle = 'Interview Round ' . $interview['round_no'] . ' | ' . $interview['first_name'] . ' ' . $interview['last_name'];
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<div class="container-fluid py-4" style="max-width: 1080px;">
-    <!-- Breadcrumb & Top Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/index.php')) ?>">Interviews</a></li>
-                    <li class="breadcrumb-item">
-                        <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$interview['candidate_id'])) ?>">
-                            <?= e($interview['first_name'] . ' ' . $interview['last_name']) ?>
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">Round <?= (int)$interview['round_no'] ?></li>
-                </ol>
-            </nav>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <h2 class="h3 fw-bold mb-0 text-body">
-                    Interview Round <?= (int)$interview['round_no'] ?>
-                </h2>
-                <span class="badge bg-body-secondary text-body border"><?= e($interview['company_code']) ?></span>
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/index.php')) ?>">Interviews</a></li>
+            <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$interview['candidate_id'])) ?>"><?= e($interview['first_name'] . ' ' . $interview['last_name']) ?></a></li>
+            <li class="breadcrumb-item active" aria-current="page">Round <?= (int)$interview['round_no'] ?></li>
+        </ol>
+    </nav>
+
+    <!-- Detail Header -->
+    <div class="detail-header">
+        <div class="detail-header-main">
+            <div class="detail-header-title-row">
+                <h1 class="detail-header-title">Interview Round <?= (int)$interview['round_no'] ?></h1>
+                <span class="badge bg-body-secondary text-body border font-monospace"><?= e($interview['company_code']) ?></span>
                 <?= interview_status_badge((string)$interview['status']) ?>
             </div>
+            <p class="detail-header-subtitle">
+                Candidate: <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$interview['candidate_id'])) ?>" class="text-decoration-none fw-semibold"><?= e($interview['first_name'] . ' ' . $interview['last_name']) ?></a> (<?= e($interview['candidate_code']) ?>)
+                &bull; Vacancy: <strong><?= e($interview['vacancy_title']) ?></strong>
+            </p>
         </div>
 
-        <!-- Header Action Buttons -->
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <a href="<?= e(url('modules/interviews/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>All Interviews
-            </a>
-
-            <!-- Panel Member Evaluation Button -->
+        <div class="detail-header-actions">
+            <!-- ONE Primary Button -->
             <?php if ($isUserOnPanel && !$hasUserEvaluated && $interview['status'] !== 'cancelled'): ?>
                 <?php if ($isPastScheduled): ?>
                     <a href="<?= e(url('modules/interviews/evaluate.php?id=' . $interviewId)) ?>" class="btn btn-success btn-sm">
-                        <i class="bi bi-pencil-square me-1"></i>Submit Evaluation
+                        <i class="bi bi-pencil-square me-1"></i> Submit Evaluation
                     </a>
                 <?php else: ?>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled
-                            title="Evaluations can only be submitted after the scheduled interview time">
-                        <i class="bi bi-clock me-1"></i>Evaluation Opens After Start
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Evaluations can only be submitted after the scheduled interview time">
+                        <i class="bi bi-clock me-1"></i> Evaluation Opens After Start
                     </button>
                 <?php endif; ?>
+            <?php elseif ($canManage): ?>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#rescheduleModal">
+                    <i class="bi bi-calendar2-range me-1"></i> Reschedule
+                </button>
+            <?php else: ?>
+                <a href="<?= e(url('modules/interviews/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> All Interviews
+                </a>
             <?php endif; ?>
 
-            <?php if (is_group_admin() && user_can('interview.delete')): ?>
-                <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDeleteInterview(<?= $interviewId ?>)">
-                    <i class="bi bi-trash me-1"></i>Delete
-                </button>
-                <form method="post" action="<?= e(url('modules/interviews/delete.php')) ?>" id="deleteInterviewForm" class="d-none">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="id" value="<?= $interviewId ?>">
-                </form>
-                <script>
-                function confirmDeleteInterview(id) {
-                    if (typeof showConfirmModal === 'function') {
-                        showConfirmModal({
-                            title: 'Delete Interview Record',
-                            message: 'Are you sure you want to permanently delete this interview? Only cancelled interviews can be deleted. This action cannot be undone.',
-                            confirmText: 'Delete Interview',
-                            variant: 'danger',
-                            onConfirm: function() {
-                                document.getElementById('deleteInterviewForm').submit();
-                            }
-                        });
-                    } else if (confirm('Are you sure you want to permanently delete this interview?')) {
-                        document.getElementById('deleteInterviewForm').submit();
-                    }
-                }
-                </script>
-            <?php endif; ?>
+            <!-- ONE "More" 3-dot menu -->
+            <?php
+            $intMore = [];
+            if ($canManage && !($isUserOnPanel && !$hasUserEvaluated && $interview['status'] !== 'cancelled' && !$canManage)) {
+                $intMore[] = [
+                    'type' => 'button',
+                    'icon' => 'bi-calendar2-range',
+                    'label' => 'Reschedule / Edit Session',
+                    'modal' => '#rescheduleModal',
+                ];
+            }
+            if ($canManage && $interview['status'] === 'scheduled') {
+                $intMore[] = [
+                    'type' => 'button',
+                    'icon' => 'bi-x-circle',
+                    'label' => 'Cancel Interview',
+                    'modal' => '#cancelModal',
+                ];
+            }
+            $intMore[] = [
+                'type' => 'link',
+                'icon' => 'bi-arrow-left',
+                'label' => 'All Interviews',
+                'url' => 'modules/interviews/index.php',
+            ];
+            if (is_group_admin() && user_can('interview.delete')) {
+                $intMore[] = [
+                    'type' => 'button',
+                    'icon' => 'bi-trash',
+                    'label' => 'Delete Interview',
+                    'onclick' => 'confirmDeleteInterview(' . $interviewId . ')',
+                    'danger' => true,
+                ];
+            }
+            echo action_menu($intMore, [
+                'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+                'aria_label' => 'More interview actions',
+            ]);
+            ?>
         </div>
     </div>
 
-    <!-- Flash Messages are rendered automatically by layout -->
+    <?php if (is_group_admin() && user_can('interview.delete')): ?>
+        <form method="post" action="<?= e(url('modules/interviews/delete.php')) ?>" id="deleteInterviewForm" class="d-none">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= $interviewId ?>">
+        </form>
+        <script>
+        function confirmDeleteInterview(id) {
+            if (typeof showConfirmModal === 'function') {
+                showConfirmModal({
+                    title: 'Delete Interview Record',
+                    message: 'Are you sure you want to permanently delete this interview? Only cancelled interviews can be deleted. This action cannot be undone.',
+                    confirmText: 'Delete Interview',
+                    variant: 'danger',
+                    onConfirm: function() {
+                        document.getElementById('deleteInterviewForm').submit();
+                    }
+                });
+            } else if (confirm('Are you sure you want to permanently delete this interview?')) {
+                document.getElementById('deleteInterviewForm').submit();
+            }
+        }
+        </script>
+    <?php endif; ?>
 
-    <div class="row g-4">
+    <div class="row g-3 align-items-start">
         <!-- Main Interview Details Column -->
         <div class="col-lg-8">
             <!-- Session Overview Card -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0 fw-semibold">
-                        <i class="bi bi-calendar-event text-primary me-2"></i>Schedule &amp; Meeting Details
-                    </h5>
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Schedule &amp; Meeting Details</span>
                     <span class="badge bg-body-secondary text-body border">
                         <?= e(interview_type_list()[$interview['interview_type']] ?? ucfirst($interview['interview_type'])) ?>
                     </span>
                 </div>
-                <div class="card-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="small text-muted fw-semibold text-uppercase">Scheduled Date &amp; Time</label>
-                            <div class="fs-6 fw-bold text-body">
+                <div class="card-body">
+                    <div class="kv-list">
+                        <div class="kv-item">
+                            <span class="kv-label">Scheduled Date &amp; Time</span>
+                            <span class="kv-value fw-bold text-body">
                                 <i class="bi bi-calendar3 me-1 text-primary"></i>
                                 <?= e(format_datetime($interview['scheduled_at'])) ?>
-                            </div>
+                            </span>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="small text-muted fw-semibold text-uppercase">Duration</label>
-                            <div class="fs-6 fw-semibold text-body">
+                        <div class="kv-item">
+                            <span class="kv-label">Duration</span>
+                            <span class="kv-value">
                                 <i class="bi bi-stopwatch me-1 text-secondary"></i>
                                 <?= (int)$interview['duration_min'] ?> minutes
-                            </div>
+                            </span>
                         </div>
 
-                        <div class="col-12">
-                            <label class="small text-muted fw-semibold text-uppercase">Location / Meeting Link</label>
-                            <div class="p-2 rounded bg-body-tertiary border">
+                        <div class="kv-item full-width">
+                            <span class="kv-label">Location / Meeting Link</span>
+                            <div class="kv-value">
                                 <?php if (!empty($interview['location_or_link'])): ?>
                                     <?php if (str_starts_with($interview['location_or_link'], 'http://') || str_starts_with($interview['location_or_link'], 'https://')): ?>
                                         <a href="<?= e($interview['location_or_link']) ?>" target="_blank" rel="noopener noreferrer" class="text-primary fw-semibold text-break">
@@ -226,7 +275,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <i class="bi bi-box-arrow-up-right ms-1 small"></i>
                                         </a>
                                     <?php else: ?>
-                                        <span class="text-body"><i class="bi bi-geo-alt me-1 text-danger"></i><?= e($interview['location_or_link']) ?></span>
+                                        <span><i class="bi bi-geo-alt me-1 text-danger"></i><?= e($interview['location_or_link']) ?></span>
                                     <?php endif; ?>
                                 <?php else: ?>
                                     <span class="text-muted">No location or link specified.</span>
@@ -235,18 +284,18 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
 
                         <?php if (!empty($interview['notes'])): ?>
-                        <div class="col-12">
-                            <label class="small text-muted fw-semibold text-uppercase">Preparation Notes &amp; History</label>
-                            <div class="p-3 bg-body-tertiary rounded small text-body" style="white-space: pre-line;">
-                                <?= e($interview['notes']) ?>
+                            <div class="kv-item full-width pt-2 border-top">
+                                <span class="kv-label">Preparation Notes &amp; History</span>
+                                <div class="kv-value small text-secondary" style="white-space: pre-line;">
+                                    <?= e($interview['notes']) ?>
+                                </div>
                             </div>
-                        </div>
                         <?php endif; ?>
+                    </div>
 
-                        <div class="col-12 pt-2 border-top d-flex justify-content-between align-items-center text-muted small">
-                            <span>Created by: <?= e($interview['creator_name'] ?? 'System') ?></span>
-                            <span>Created: <?= e(format_datetime($interview['created_at'])) ?></span>
-                        </div>
+                    <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center text-muted small flex-wrap gap-2">
+                        <span>Created by: <strong><?= e($interview['creator_name'] ?? 'System') ?></strong></span>
+                        <span>Created: <?= e(format_datetime($interview['created_at'])) ?></span>
                     </div>
                 </div>
             </div>
@@ -440,7 +489,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <input type="hidden" name="interview_id" value="<?= $interviewId ?>">
                                     <input type="hidden" name="action" value="no_show">
                                     <input type="hidden" name="return_to" value="<?= e(url('modules/interviews/view.php?id=' . $interviewId)) ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-dark w-100">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
                                         <i class="bi bi-person-x me-1"></i>Mark No Show
                                     </button>
                                 </form>
@@ -565,5 +614,169 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Email Candidate Preview & Send Modal -->
+<div class="modal fade" id="emailCandidateModal" tabindex="-1" aria-labelledby="emailCandidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="post" action="<?= e(url('modules/candidates/email.php')) ?>" id="emailCandidateForm">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="send">
+                <input type="hidden" name="application_id" id="emailModalAppId" value="<?= (int)$interview['application_id'] ?>">
+                <input type="hidden" name="interview_id" id="emailModalInterviewId" value="<?= (int)$interviewId ?>">
+                <input type="hidden" name="template" id="emailModalTemplate" value="interview_invite">
+                <input type="hidden" name="redirect_to" value="<?= e(url('modules/interviews/view.php?id=' . $interviewId)) ?>">
+
+                <div class="modal-header">
+                    <h5 class="modal-title d-flex align-items-center gap-2" id="emailCandidateModalLabel">
+                        <i class="bi bi-envelope-paper text-primary"></i>
+                        <span>Email Candidate</span>
+                        <span class="badge bg-body-secondary text-body border small fw-normal" id="emailModalTemplateBadge"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="emailModalErrorAlert" class="alert alert-danger small d-none mb-3"></div>
+                    <div id="emailModalLoading" class="text-center py-4 d-none">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        <span class="text-muted small">Loading template preview...</span>
+                    </div>
+                    <div id="emailModalFields">
+                        <div class="mb-3">
+                            <label for="emailModalTo" class="form-label small fw-semibold text-muted mb-1">To (Candidate Email)</label>
+                            <input type="email" id="emailModalTo" class="form-control form-control-sm bg-body-tertiary" readonly value="<?= e((string)($interview['candidate_email'] ?? '')) ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="emailModalSubject" class="form-label small fw-semibold mb-1">Subject <span class="text-danger">*</span></label>
+                            <input type="text" name="subject" id="emailModalSubject" class="form-control" maxlength="200" required oninput="updateEmailModalMailtoLink()">
+                        </div>
+                        <div class="mb-2">
+                            <label for="emailModalBody" class="form-label small fw-semibold mb-1">Message Body <span class="text-danger">*</span></label>
+                            <textarea name="body" id="emailModalBody" class="form-control font-monospace small" rows="10" required oninput="updateEmailModalMailtoLink()"></textarea>
+                            <div class="form-text small">
+                                You can customize the subject and body before sending. All HTML is safely escaped and wrapped in the company stationery layout.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <div class="small text-muted">
+                        <?php if ($mailIsConfigured): ?>
+                            <i class="bi bi-check-circle text-success me-1"></i>Direct email delivery enabled
+                        <?php else: ?>
+                            <i class="bi bi-info-circle text-secondary me-1"></i>Email not configured &mdash; opens in your default mail client
+                        <?php endif; ?>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <?php if ($mailIsConfigured): ?>
+                            <button type="submit" id="emailModalSendBtn" class="btn btn-primary">
+                                <i class="bi bi-send me-1"></i>Send
+                            </button>
+                        <?php else: ?>
+                            <a href="mailto:" id="emailModalMailtoBtn" class="btn btn-primary">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Open in mail app
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const EMAIL_PREVIEW_URL = <?= json_encode(url('modules/candidates/email.php')) ?>;
+const CSRF_TOKEN_VAL = <?= json_encode(csrf_token()) ?>;
+
+function buildSafeMailtoHref(toEmail, subject, body) {
+    const cleanTo = (toEmail || '').trim();
+    const cleanSubj = (subject || '').trim().substring(0, 200);
+    let normBody = (body || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    const prefix = 'mailto:' + encodeURIComponent(cleanTo) + '?subject=' + encodeURIComponent(cleanSubj) + '&body=';
+    let full = prefix + encodeURIComponent(normBody);
+    while (full.length > 1800 && normBody.length > 0) {
+        normBody = normBody.substring(0, Math.max(0, normBody.length - 25));
+        full = prefix + encodeURIComponent(normBody.trimEnd() + '...');
+    }
+    return full.substring(0, 1800);
+}
+
+function updateEmailModalMailtoLink() {
+    const mailtoBtn = document.getElementById('emailModalMailtoBtn');
+    if (!mailtoBtn) return;
+    const toVal   = document.getElementById('emailModalTo').value;
+    const subjVal = document.getElementById('emailModalSubject').value;
+    const bodyVal = document.getElementById('emailModalBody').value;
+    mailtoBtn.setAttribute('href', buildSafeMailtoHref(toVal, subjVal, bodyVal));
+}
+
+function openEmailCandidateModal(appId, templateKey, interviewId) {
+    document.getElementById('emailModalAppId').value = appId;
+    document.getElementById('emailModalTemplate').value = templateKey;
+    if (interviewId) {
+        document.getElementById('emailModalInterviewId').value = interviewId;
+    }
+
+    const badge = document.getElementById('emailModalTemplateBadge');
+    if (badge) {
+        badge.textContent = templateKey.replace(/_/g, ' ');
+    }
+
+    const errBox = document.getElementById('emailModalErrorAlert');
+    const loading = document.getElementById('emailModalLoading');
+    const fields = document.getElementById('emailModalFields');
+    errBox.classList.add('d-none');
+    errBox.textContent = '';
+    loading.classList.remove('d-none');
+    fields.classList.add('opacity-50');
+
+    const modalEl = document.getElementById('emailCandidateModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    const formData = new URLSearchParams();
+    formData.set('csrf_token', CSRF_TOKEN_VAL);
+    formData.set('action', 'preview');
+    formData.set('application_id', String(appId));
+    formData.set('template', templateKey);
+    if (interviewId) {
+        formData.set('interview_id', String(interviewId));
+    }
+
+    fetch(EMAIL_PREVIEW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+    })
+    .then(r => r.json())
+    .then(data => {
+        loading.classList.add('d-none');
+        fields.classList.remove('opacity-50');
+        if (!data || !data.ok) {
+            errBox.textContent = (data && data.error) ? data.error : 'Failed to load email preview.';
+            errBox.classList.remove('d-none');
+            return;
+        }
+        document.getElementById('emailModalTo').value = data.to || '';
+        document.getElementById('emailModalSubject').value = data.subject || '';
+        document.getElementById('emailModalBody').value = data.body || data.text || '';
+        const mailtoBtn = document.getElementById('emailModalMailtoBtn');
+        if (mailtoBtn) {
+            if (data.mailto && data.mailto.length <= 1800) {
+                mailtoBtn.setAttribute('href', data.mailto);
+            } else {
+                updateEmailModalMailtoLink();
+            }
+        }
+    })
+    .catch(() => {
+        loading.classList.add('d-none');
+        fields.classList.remove('opacity-50');
+        errBox.textContent = 'Network error while loading email preview.';
+        errBox.classList.remove('d-none');
+    });
+}
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

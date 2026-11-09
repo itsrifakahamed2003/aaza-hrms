@@ -183,3 +183,189 @@ function status_badge(string $domain, string $status, ?string $label = null): st
     return '<span class="badge ' . $colorClass . '">' . e($displayLabel) . '</span>';
 }
 
+/**
+ * Render a standardized 3-dot (kebab) action dropdown menu.
+ *
+ * @param array<int, array<string, mixed>> $items Menu items to render
+ * @param array{class?: string, btn_class?: string, aria_label?: string, align?: string} $options
+ * @return string Rendered HTML, or empty string if no allowed items
+ */
+function action_menu(array $items, array $options = []): string {
+    // 1. Filter out items where permission or visible is explicitly false
+    $validItems = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        if (isset($item['permission']) && !$item['permission']) {
+            continue;
+        }
+        if (isset($item['visible']) && !$item['visible']) {
+            continue;
+        }
+        $validItems[] = $item;
+    }
+
+    if (empty($validItems)) {
+        return '';
+    }
+
+    // Check if there are actionable items (not just dividers)
+    $hasActionable = false;
+    foreach ($validItems as $it) {
+        if (($it['type'] ?? 'link') !== 'divider') {
+            $hasActionable = true;
+            break;
+        }
+    }
+    if (!$hasActionable) {
+        return '';
+    }
+
+    // 2. Partition into standard and danger items unless explicit dividers were provided
+    $hasExplicitDivider = false;
+    foreach ($validItems as $it) {
+        if (($it['type'] ?? '') === 'divider') {
+            $hasExplicitDivider = true;
+            break;
+        }
+    }
+
+    $orderedItems = [];
+    if ($hasExplicitDivider) {
+        $orderedItems = $validItems;
+    } else {
+        $standardItems = [];
+        $dangerItems = [];
+        foreach ($validItems as $it) {
+            $isDanger = !empty($it['danger'])
+                || (isset($it['confirm_type']) && $it['confirm_type'] === 'danger')
+                || str_contains(strtolower((string)($it['label'] ?? '')), 'delete')
+                || str_contains(strtolower((string)($it['label'] ?? '')), 'deactivate');
+            if ($isDanger) {
+                $it['danger'] = true;
+                $dangerItems[] = $it;
+            } else {
+                $standardItems[] = $it;
+            }
+        }
+
+        $orderedItems = $standardItems;
+        if (!empty($standardItems) && !empty($dangerItems)) {
+            $orderedItems[] = ['type' => 'divider'];
+        }
+        foreach ($dangerItems as $dit) {
+            $orderedItems[] = $dit;
+        }
+    }
+
+    // 3. Render HTML
+    $menuAlign = $options['align'] ?? 'dropdown-menu-end';
+    $btnAria = $options['aria_label'] ?? 'Actions';
+    $extraMenuClass = !empty($options['class']) ? ' ' . $options['class'] : '';
+    $btnClass = $options['btn_class'] ?? 'btn btn-light btn-sm action-menu-btn';
+
+    $out = '<div class="dropdown action-menu d-inline-block' . e($extraMenuClass) . '">';
+    $out .= '<button type="button" class="' . e($btnClass) . '" data-bs-toggle="dropdown" data-bs-popper-config=\'{"strategy":"fixed"}\' aria-expanded="false" aria-label="' . e($btnAria) . '" title="' . e($btnAria) . '">';
+    $out .= '<i class="bi bi-three-dots-vertical"></i>';
+    $out .= '</button>';
+    $out .= '<ul class="dropdown-menu ' . e($menuAlign) . ' shadow-sm">';
+
+    foreach ($orderedItems as $item) {
+        $type = $item['type'] ?? 'link';
+        if ($type === 'divider') {
+            $out .= '<li><hr class="dropdown-divider my-1"></li>';
+            continue;
+        }
+
+        $label = (string)($item['label'] ?? '');
+        $icon = !empty($item['icon']) ? '<i class="bi ' . e($item['icon']) . ' me-2"></i>' : '';
+        $isDanger = !empty($item['danger']);
+        $itemClass = 'dropdown-item d-flex align-items-center' . ($isDanger ? ' text-danger' : '');
+        if (!empty($item['class'])) {
+            $itemClass .= ' ' . $item['class'];
+        }
+
+        if ($type === 'link') {
+            $url = !empty($item['url']) ? url((string)$item['url']) : '#';
+            $attrs = '';
+            if (!empty($item['attributes']) && is_array($item['attributes'])) {
+                foreach ($item['attributes'] as $ak => $av) {
+                    $attrs .= ' ' . e($ak) . '="' . e((string)$av) . '"';
+                }
+            }
+            if (!empty($item['target'])) {
+                $attrs .= ' target="' . e($item['target']) . '"';
+            }
+            if (!empty($item['confirm'])) {
+                $attrs .= ' data-confirm="' . e($item['confirm']) . '"';
+                if (!empty($item['confirm_type'])) {
+                    $attrs .= ' data-confirm-type="' . e($item['confirm_type']) . '"';
+                }
+            }
+            $out .= '<li>';
+            $out .= '<a class="' . e($itemClass) . '" href="' . e($url) . '"' . $attrs . '>';
+            $out .= $icon . '<span>' . e($label) . '</span>';
+            $out .= '</a>';
+            $out .= '</li>';
+        } elseif ($type === 'post' || $type === 'form') {
+            $url = !empty($item['url']) ? url((string)$item['url']) : '';
+            $confirmAttr = '';
+            if (!empty($item['confirm'])) {
+                $confirmAttr .= ' data-confirm="' . e($item['confirm']) . '"';
+                if (!empty($item['confirm_type'])) {
+                    $confirmAttr .= ' data-confirm-type="' . e($item['confirm_type']) . '"';
+                }
+                if (!empty($item['confirm_title'])) {
+                    $confirmAttr .= ' data-confirm-title="' . e($item['confirm_title']) . '"';
+                }
+                if (!empty($item['confirm_btn'])) {
+                    $confirmAttr .= ' data-confirm-btn="' . e($item['confirm_btn']) . '"';
+                }
+            }
+
+            $out .= '<li>';
+            $out .= '<form method="post" action="' . e($url) . '" class="m-0 p-0"' . $confirmAttr . '>';
+            $out .= csrf_field();
+            if (!empty($item['params']) && is_array($item['params'])) {
+                foreach ($item['params'] as $pk => $pv) {
+                    $out .= '<input type="hidden" name="' . e((string)$pk) . '" value="' . e((string)$pv) . '">';
+                }
+            }
+            $out .= '<button type="submit" class="' . e($itemClass) . '">';
+            $out .= $icon . '<span>' . e($label) . '</span>';
+            $out .= '</button>';
+            $out .= '</form>';
+            $out .= '</li>';
+        } elseif ($type === 'button') {
+            $attrs = '';
+            if (!empty($item['modal'])) {
+                $attrs .= ' data-bs-toggle="modal" data-bs-target="' . e($item['modal']) . '"';
+            }
+            if (!empty($item['onclick'])) {
+                $attrs .= ' onclick="' . e($item['onclick']) . '"';
+            }
+            if (!empty($item['attributes']) && is_array($item['attributes'])) {
+                foreach ($item['attributes'] as $ak => $av) {
+                    $attrs .= ' ' . e($ak) . '="' . e((string)$av) . '"';
+                }
+            }
+            if (!empty($item['confirm'])) {
+                $attrs .= ' data-confirm="' . e($item['confirm']) . '"';
+                if (!empty($item['confirm_type'])) {
+                    $attrs .= ' data-confirm-type="' . e($item['confirm_type']) . '"';
+                }
+            }
+            $out .= '<li>';
+            $out .= '<button type="button" class="' . e($itemClass) . '"' . $attrs . '>';
+            $out .= $icon . '<span>' . e($label) . '</span>';
+            $out .= '</button>';
+            $out .= '</li>';
+        }
+    }
+
+    $out .= '</ul>';
+    $out .= '</div>';
+    return $out;
+}
+

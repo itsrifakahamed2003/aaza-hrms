@@ -122,19 +122,19 @@ require __DIR__ . '/../../includes/header.php';
 <div class="container-fluid py-4">
     <!-- Top Header -->
     <div class="page-header mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb breadcrumb-clean mb-1">
-                <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Global Search</li>
-            </ol>
-        </nav>
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <h1 class="page-header-title mb-1">
-                    <i class="bi bi-search me-2 text-primary"></i>Global Search
-                </h1>
-                <p class="page-header-desc mb-0">Search across employees, candidates, vacancies, interviews, offers, and master data.</p>
-            </div>
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-clean mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Global Search</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title mb-1">
+                <i class="bi bi-search me-2 text-primary"></i>Global Search
+            </h1>
+            <p class="page-header-desc mb-0">Search across employees, candidates, vacancies, interviews, offers, and master data.</p>
+        </div>
+        <div class="page-actions">
             <?php if ($q !== ''): ?>
                 <div class="text-body-secondary small d-flex align-items-center flex-wrap gap-2">
                     <span><?= number_format($searchResult['total_count']) ?> matching result<?= $searchResult['total_count'] === 1 ? '' : 's' ?> found</span>

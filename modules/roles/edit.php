@@ -159,7 +159,7 @@ require __DIR__ . '/../../includes/header.php';
             <?= e($role['description'] ?: 'Select the individual granular permissions granted to users holding this role.') ?>
         </p>
     </div>
-    <div class="page-header-actions">
+    <div class="page-header-actions page-actions">
         <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/roles/index.php')) ?>">
             <i class="bi bi-arrow-left me-1"></i> Back to Roles
         </a>

@@ -122,6 +122,20 @@ $statsSt = $pdo->prepare(
 $statsSt->execute($scopedParams);
 $kpis = $statsSt->fetch() ?: ['total_vacancies' => 0, 'open_vacancies' => 0, 'open_positions' => 0];
 
+// All accessible vacancies for the top Pipeline Board dropdown switcher (open ones first)
+$allVacanciesSt = $pdo->prepare("
+    SELECT v.id, v.vacancy_code, v.title, v.status,
+           COUNT(ca.id) AS applications_count
+      FROM job_vacancies v
+      LEFT JOIN candidate_applications ca ON ca.vacancy_id = v.id
+     WHERE $scopedSql
+     GROUP BY v.id
+     ORDER BY (CASE WHEN v.status = 'open' THEN 1 WHEN v.status = 'on_hold' THEN 2 WHEN v.status = 'draft' THEN 3 ELSE 4 END),
+              v.title ASC
+");
+$allVacanciesSt->execute($scopedParams);
+$accessibleVacancies = $allVacanciesSt->fetchAll();
+
 $types = employment_type_list();
 $canCreate = false;
 foreach ($scopedCompanyIds as $cid) {
@@ -135,15 +149,46 @@ $pageTitle = 'Job Vacancies';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h1 class="h3 mb-1">Job Vacancies</h1>
             <p class="text-muted small mb-0">Manage job postings, positions count, closing dates, and candidate pipelines.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="page-actions d-flex gap-2 align-items-center flex-wrap">
+            <?php if (empty($accessibleVacancies)): ?>
+                <button type="button" class="btn btn-outline-secondary" disabled data-bs-toggle="tooltip" title="No vacancies yet">
+                    <i class="bi bi-kanban me-1"></i> Pipeline Board
+                </button>
+            <?php elseif (count($accessibleVacancies) === 1): ?>
+                <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$accessibleVacancies[0]['id'])) ?>" class="btn btn-outline-primary">
+                    <i class="bi bi-kanban me-1"></i> Pipeline Board
+                </a>
+            <?php else: ?>
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle" type="button" id="pipelineBoardDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-kanban me-1"></i> Pipeline Board
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-start dropdown-menu-md-end shadow-sm" aria-labelledby="pipelineBoardDropdown" style="max-height: 380px; overflow-y: auto; min-width: 280px; max-width: 90vw;">
+                        <li class="dropdown-header text-uppercase small">Select Vacancy Board</li>
+                        <?php foreach ($accessibleVacancies as $av): ?>
+                            <li>
+                                <a class="dropdown-item d-flex justify-content-between align-items-center gap-2" href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$av['id'])) ?>">
+                                    <span class="text-truncate">
+                                        <strong><?= e($av['vacancy_code']) ?></strong> - <?= e($av['title']) ?>
+                                    </span>
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill flex-shrink-0">
+                                        <?= (int)$av['applications_count'] ?> candidate<?= (int)$av['applications_count'] === 1 ? '' : 's' ?>
+                                    </span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
             <?php if ($canCreate): ?>
                 <a href="<?= e(url('modules/vacancies/form.php')) ?>" class="btn btn-primary">
-                    <span class="me-1">+</span> New Vacancy
+                    <i class="bi bi-plus-lg me-1"></i> New Vacancy
                 </a>
             <?php endif; ?>
         </div>
@@ -239,6 +284,15 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <!-- Vacancies Table -->
     <div class="card border-0 shadow-sm">
+        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="card-title mb-0 fs-6 fw-bold">Vacancies Directory</h5>
+                <small class="text-muted d-block mt-0.5">
+                    <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any vacancy row to view full details.
+                </small>
+            </div>
+            <span class="badge bg-body-secondary text-body border"><?= (int)$totalCount ?> vacanc<?= (int)$totalCount === 1 ? 'y' : 'ies' ?></span>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -250,7 +304,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th>Closing Date</th>
                             <th>Applicants</th>
                             <th>Status</th>
-                            <th class="text-end pe-3">Actions</th>
+                            <th class="text-end pe-3 action-col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -279,8 +333,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                     }
                                 }
                                 $canManageThis = user_can('vacancy.manage', (int)$v['company_id']);
+                                $vacViewUrl = url('modules/vacancies/view.php?id=' . (int)$v['id']);
                                 ?>
-                                <tr>
+                                <tr class="clickable-row vacancy-row" data-href="<?= e($vacViewUrl) ?>" title="Double-click to view vacancy <?= e($v['vacancy_code']) ?>">
                                     <td class="ps-3 fw-semibold text-primary">
                                         <a href="<?= e(url('modules/vacancies/view.php?id=' . (int)$v['id'])) ?>" class="text-decoration-none">
                                             <?= e($v['vacancy_code']) ?>
@@ -315,26 +370,36 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$v['id'])) ?>" class="btn btn-sm btn-outline-info rounded-pill px-2 py-0" title="View Pipeline">
+                                        <span class="badge bg-body-secondary text-body border px-2 py-1" title="Application Count">
                                             <strong><?= (int)$v['applications_count'] ?></strong> candidate<?= (int)$v['applications_count'] === 1 ? '' : 's' ?>
-                                        </a>
+                                        </span>
                                     </td>
                                     <td>
                                         <?= vacancy_status_badge($v['status']) ?>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$v['id'])) ?>" class="btn btn-outline-primary" title="Pipeline Kanban">
-                                                Pipeline
+                                    <td class="text-end pe-3 action-col">
+                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                            <a href="<?= e($vacViewUrl) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5 text-nowrap" title="View vacancy details">
+                                                <i class="bi bi-eye me-1"></i>View
                                             </a>
-                                            <a href="<?= e(url('modules/vacancies/view.php?id=' . (int)$v['id'])) ?>" class="btn btn-outline-secondary" title="Details">
-                                                View
+                                            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$v['id'])) ?>" class="btn btn-sm btn-primary text-nowrap" title="Open Pipeline Board">
+                                                <i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Pipeline Board</span><span class="d-sm-none">Pipeline</span>
                                             </a>
-                                            <?php if ($canManageThis): ?>
-                                                <a href="<?= e(url('modules/vacancies/form.php?id=' . (int)$v['id'])) ?>" class="btn btn-outline-secondary" title="Edit Vacancy">
-                                                    Edit
-                                                </a>
-                                            <?php endif; ?>
+                                            <?= action_menu([
+                                                [
+                                                    'type'  => 'link',
+                                                    'label' => 'View Details',
+                                                    'url'   => 'modules/vacancies/view.php?id=' . (int)$v['id'],
+                                                    'icon'  => 'bi-eye',
+                                                ],
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Edit Vacancy',
+                                                    'url'        => 'modules/vacancies/form.php?id=' . (int)$v['id'],
+                                                    'icon'       => 'bi-pencil',
+                                                    'permission' => (bool)$canManageThis,
+                                                ],
+                                            ]) ?>
                                         </div>
                                     </td>
                                 </tr>

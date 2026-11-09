@@ -9,6 +9,8 @@ $pdo = db();
 $id = (int)($_GET['id'] ?? 0);
 $isEdit = ($id > 0);
 
+$hasCrossCompany = is_group_admin() || user_can('candidate.cross_company');
+
 $candidate = null;
 if ($isEdit) {
     $st = $pdo->prepare('SELECT * FROM candidates WHERE id = ? LIMIT 1');
@@ -19,7 +21,7 @@ if ($isEdit) {
     }
 
     // Check visibility if not cross-company and not group admin
-    if (!is_group_admin() && !user_can('candidate.cross_company')) {
+    if (!$hasCrossCompany) {
         $scopedCompanyIds = scoped_company_ids('candidate.view');
         $cph = implode(',', array_fill(0, count($scopedCompanyIds ?: [0]), '?'));
         $permSt = $pdo->prepare(
@@ -58,65 +60,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $firstName = trim((string)($_POST['first_name'] ?? ''));
     $lastName = trim((string)($_POST['last_name'] ?? ''));
     $email = trim((string)($_POST['email'] ?? ''));
-    $phone = trim((string)($_POST['phone'] ?? ''));
-    $nicPassport = trim((string)($_POST['nic_passport'] ?? ''));
+    $phoneRaw = trim((string)($_POST['phone'] ?? ''));
+    $nicPassportRaw = trim((string)($_POST['nic_passport'] ?? ''));
     $dob = trim((string)($_POST['dob'] ?? ''));
     $gender = trim((string)($_POST['gender'] ?? ''));
     $address = trim((string)($_POST['address'] ?? ''));
     $qualifications = trim((string)($_POST['qualifications'] ?? ''));
     $experienceYears = trim((string)($_POST['experience_years'] ?? ''));
     $skills = trim((string)($_POST['skills'] ?? ''));
-    $source = trim((string)($_POST['source'] ?? 'job_portal'));
+    $source = trim((string)($_POST['source'] ?? ''));
     $consentGiven = !empty($_POST['consent_given']);
     $confirmDuplicate = (string)($_POST['confirm_duplicate'] ?? '0');
 
-    // Validation
+    // Phone normalization: strip spaces, dashes, parentheses; convert +94 or 94 to 0
+    $phone = preg_replace('/[\s\-()]+/', '', $phoneRaw);
+    if (str_starts_with($phone, '+94')) {
+        $phone = '0' . substr($phone, 3);
+    } elseif (str_starts_with($phone, '94') && strlen($phone) === 11) {
+        $phone = '0' . substr($phone, 2);
+    }
+
+    // NIC / Passport normalization: uppercase
+    $nicPassport = strtoupper(trim($nicPassportRaw));
+
+    // Privacy Consent: REQUIRED on new registration
     if (!$isEdit && !$consentGiven) {
         $errors['consent_given'] = 'Candidate privacy consent is required to register a profile in the talent pool.';
     }
 
+    // First Name: REQUIRED
     if ($firstName === '') {
         $errors['first_name'] = 'First name is required.';
+    } elseif (mb_strlen($firstName) > 80) {
+        $errors['first_name'] = 'First name cannot exceed 80 characters.';
     }
+
+    // Last Name: REQUIRED
     if ($lastName === '') {
         $errors['last_name'] = 'Last name is required.';
+    } elseif (mb_strlen($lastName) > 80) {
+        $errors['last_name'] = 'Last name cannot exceed 80 characters.';
     }
 
-    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = 'Please enter a valid email address.';
+    // Email: REQUIRED, valid format
+    if ($email === '') {
+        $errors['email'] = 'Email address is required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150) {
+        $errors['email'] = 'Please enter a valid email address (e.g. name@example.com).';
     }
 
-    if ($dob !== '') {
-        $d = DateTime::createFromFormat('Y-m-d', $dob);
+    // Phone: REQUIRED, valid Sri Lankan 10-digit number
+    if ($phone === '') {
+        $errors['phone'] = 'Phone number is required.';
+    } elseif (!preg_match('/^0[0-9]{9}$/', $phone)) {
+        $errors['phone'] = 'Please enter a valid 10-digit Sri Lankan phone number (e.g. 0771234567 or +94771234567).';
+    }
+
+    // NIC / Passport: REQUIRED, valid Sri Lankan NIC (9 digits + V/X, or 12 digits) or valid Passport (6-20 alphanumeric)
+    if ($nicPassport === '') {
+        $errors['nic_passport'] = 'NIC or Passport number is required.';
+    } else {
+        $isOldNic = (bool)preg_match('/^[0-9]{9}[VX]$/', $nicPassport);
+        $isNewNic = (bool)preg_match('/^[0-9]{12}$/', $nicPassport);
+        $isPassport = (bool)preg_match('/^[A-Z0-9]{6,20}$/', $nicPassport);
+
+        if (!$isOldNic && !$isNewNic && !$isPassport) {
+            $errors['nic_passport'] = 'Enter a valid Sri Lankan NIC (old 9 digits with V/X, or new 12 digits) or a valid Passport number (6 to 20 alphanumeric characters).';
+        }
+    }
+
+    // Date of Birth: REQUIRED, valid date, not future, at least 16 years old
+    if ($dob === '') {
+        $errors['dob'] = 'Date of birth is required.';
+    } else {
+        $d = DateTimeImmutable::createFromFormat('Y-m-d', $dob);
+        $today = new DateTimeImmutable('today');
         if (!$d || $d->format('Y-m-d') !== $dob) {
-            $errors['dob'] = 'Invalid date format for Date of Birth (YYYY-MM-DD).';
-        }
-    } else {
-        $dob = null;
-    }
-
-    if ($gender !== '' && !in_array($gender, ['male', 'female'], true)) {
-        $errors['gender'] = 'Invalid gender selected.';
-    } else {
-        $gender = $gender !== '' ? $gender : null;
-    }
-
-    $expVal = null;
-    if ($experienceYears !== '') {
-        if (!is_numeric($experienceYears) || (float)$experienceYears < 0) {
-            $errors['experience_years'] = 'Experience must be a positive number of years.';
+            $errors['dob'] = 'Date of birth must be a valid date in YYYY-MM-DD format.';
+        } elseif ($d > $today) {
+            $errors['dob'] = 'Date of birth cannot be in the future.';
         } else {
-            $expVal = round((float)$experienceYears, 1);
+            $minAgeDate = $today->modify('-16 years');
+            if ($d > $minAgeDate) {
+                $errors['dob'] = 'Candidate must be at least 16 years old.';
+            }
         }
+    }
+
+    // Gender: REQUIRED, male or female
+    if ($gender === '' || !in_array($gender, ['male', 'female'], true)) {
+        $errors['gender'] = 'Please select a gender (Male or Female).';
+    }
+
+    // Source / Channel: REQUIRED, valid option
+    if ($source === '' || !array_key_exists($source, candidate_source_list())) {
+        $errors['source'] = 'Please select a recruitment source/channel.';
+    }
+
+    // Residential Address: REQUIRED
+    if ($address === '') {
+        $errors['address'] = 'Residential address is required.';
+    }
+
+    // Experience (Years): REQUIRED, numeric between 0 and 60
+    $expVal = null;
+    if ($experienceYears === '') {
+        $errors['experience_years'] = 'Experience (Years) is required (enter 0 if fresher / no experience).';
+    } elseif (!is_numeric($experienceYears) || (float)$experienceYears < 0 || (float)$experienceYears > 60) {
+        $errors['experience_years'] = 'Experience must be a positive number of years between 0 and 60.';
+    } else {
+        $expVal = round((float)$experienceYears, 1);
+    }
+
+    // Key Skills: REQUIRED
+    if ($skills === '') {
+        $errors['skills'] = 'Key skills are required.';
+    }
+
+    // Qualifications & Education: REQUIRED
+    if ($qualifications === '') {
+        $errors['qualifications'] = 'Qualifications & education details are required.';
     }
 
     // Check duplicates on create (or on edit if email/phone/nic changed)
     if (empty($errors)) {
         $dupes = check_candidate_duplicates(
             $pdo,
-            $email !== '' ? $email : null,
-            $phone !== '' ? $phone : null,
-            $nicPassport !== '' ? $nicPassport : null,
+            $email,
+            $phone,
+            $nicPassport,
             $isEdit ? $id : null
         );
 
@@ -271,19 +343,26 @@ $pageTitle = $isEdit ? 'Edit Candidate: ' . ($candidate['candidate_code'] ?? '')
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 900px;">
-    <div class="mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/index.php')) ?>">Candidates</a></li>
-                <?php if ($isEdit): ?>
-                    <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$candidate['id'])) ?>"><?= e($candidate['candidate_code']) ?></a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
-                <?php else: ?>
-                    <li class="breadcrumb-item active" aria-current="page">New Candidate</li>
-                <?php endif; ?>
-            </ol>
-        </nav>
-        <h1 class="h3 mb-0"><?= $isEdit ? 'Edit Candidate Profile (' . e($candidate['candidate_code']) . ')' : 'Register Candidate to Talent Pool' ?></h1>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/index.php')) ?>">Candidates</a></li>
+                    <?php if ($isEdit): ?>
+                        <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$candidate['id'])) ?>"><?= e($candidate['candidate_code']) ?></a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                    <?php else: ?>
+                        <li class="breadcrumb-item active" aria-current="page">New Candidate</li>
+                    <?php endif; ?>
+                </ol>
+            </nav>
+            <h1 class="page-header-title h3 mb-0"><?= $isEdit ? 'Edit Candidate Profile (' . e($candidate['candidate_code']) . ')' : 'Register Candidate to Talent Pool' ?></h1>
+        </div>
+        <div class="page-actions">
+            <a href="<?= e($isEdit ? url('modules/candidates/view.php?id=' . (int)$candidate['id']) : url('modules/candidates/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
     </div>
 
     <!-- Duplicate Warning Box -->
@@ -293,7 +372,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="fw-bold">
                     <span class="me-1">&#9888;</span> Potential Duplicate Profile(s) Found
                 </div>
-                <span class="badge bg-warning text-body"><?= count($duplicatesFound) ?> Match<?= count($duplicatesFound) === 1 ? '' : 'es' ?></span>
+                <span class="badge bg-warning"><?= count($duplicatesFound) ?> Match<?= count($duplicatesFound) === 1 ? '' : 'es' ?></span>
             </div>
             <div class="card-body">
                 <p class="mb-3">
@@ -386,25 +465,27 @@ require_once __DIR__ . '/../../includes/header.php';
 
                     <!-- Contact & Identity -->
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Email</label>
+                        <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
                         <input type="email" name="email" class="form-control <?= isset($errors['email']) ? 'is-invalid' : '' ?>"
-                               value="<?= e($email) ?>" placeholder="candidate@example.com" maxlength="150">
+                               value="<?= e($email) ?>" placeholder="candidate@example.com" maxlength="150" required>
                         <?php if (isset($errors['email'])): ?>
                             <div class="invalid-feedback"><?= e($errors['email']) ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Phone</label>
+                        <label class="form-label fw-semibold">Phone <span class="text-danger">*</span></label>
                         <input type="text" name="phone" class="form-control <?= isset($errors['phone']) ? 'is-invalid' : '' ?>"
-                               value="<?= e($phone) ?>" placeholder="+94 77 123 4567" maxlength="30">
+                               value="<?= e($phone) ?>" placeholder="0771234567 or +94 77 123 4567" maxlength="30" required>
+                        <div class="form-text">Sri Lankan 10-digit number (e.g. 0771234567).</div>
                         <?php if (isset($errors['phone'])): ?>
                             <div class="invalid-feedback"><?= e($errors['phone']) ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">NIC / Passport</label>
+                        <label class="form-label fw-semibold">NIC / Passport <span class="text-danger">*</span></label>
                         <input type="text" name="nic_passport" class="form-control <?= isset($errors['nic_passport']) ? 'is-invalid' : '' ?>"
-                               value="<?= e($nicPassport) ?>" placeholder="NIC or Passport No." maxlength="30">
+                               value="<?= e($nicPassport) ?>" placeholder="e.g. 199512345678 or 951234567V" maxlength="30" required>
+                        <div class="form-text">9-digit+V/X or 12-digit NIC, or Passport.</div>
                         <?php if (isset($errors['nic_passport'])): ?>
                             <div class="invalid-feedback"><?= e($errors['nic_passport']) ?></div>
                         <?php endif; ?>
@@ -412,16 +493,17 @@ require_once __DIR__ . '/../../includes/header.php';
 
                     <!-- Personal Demographics -->
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Date of Birth</label>
+                        <label class="form-label fw-semibold">Date of Birth <span class="text-danger">*</span></label>
                         <input type="date" name="dob" class="form-control <?= isset($errors['dob']) ? 'is-invalid' : '' ?>"
-                               value="<?= e((string)$dob) ?>">
+                               value="<?= e((string)$dob) ?>" max="<?= date('Y-m-d', strtotime('-16 years')) ?>" required>
+                        <div class="form-text">Must be at least 16 years old.</div>
                         <?php if (isset($errors['dob'])): ?>
                             <div class="invalid-feedback"><?= e($errors['dob']) ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Gender</label>
-                        <select name="gender" class="form-select <?= isset($errors['gender']) ? 'is-invalid' : '' ?>">
+                        <label class="form-label fw-semibold">Gender <span class="text-danger">*</span></label>
+                        <select name="gender" class="form-select <?= isset($errors['gender']) ? 'is-invalid' : '' ?>" required>
                             <option value="">-- Select Gender --</option>
                             <?php foreach (candidate_gender_list() as $gk => $gl): ?>
                                 <option value="<?= e($gk) ?>"<?= $gender === $gk ? ' selected' : '' ?>><?= e($gl) ?></option>
@@ -432,8 +514,9 @@ require_once __DIR__ . '/../../includes/header.php';
                         <?php endif; ?>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Source / Channel</label>
-                        <select name="source" class="form-select <?= isset($errors['source']) ? 'is-invalid' : '' ?>">
+                        <label class="form-label fw-semibold">Source / Channel <span class="text-danger">*</span></label>
+                        <select name="source" class="form-select <?= isset($errors['source']) ? 'is-invalid' : '' ?>" required>
+                            <option value="">-- Select Source --</option>
                             <?php foreach (candidate_source_list() as $sk => $sl): ?>
                                 <option value="<?= e($sk) ?>"<?= $source === $sk ? ' selected' : '' ?>><?= e($sl) ?></option>
                             <?php endforeach; ?>
@@ -445,30 +528,40 @@ require_once __DIR__ . '/../../includes/header.php';
 
                     <!-- Address -->
                     <div class="col-12">
-                        <label class="form-label fw-semibold">Residential Address</label>
-                        <textarea name="address" class="form-control" rows="2" placeholder="Full address..."><?= e($address) ?></textarea>
+                        <label class="form-label fw-semibold">Residential Address <span class="text-danger">*</span></label>
+                        <textarea name="address" class="form-control <?= isset($errors['address']) ? 'is-invalid' : '' ?>" rows="2" placeholder="Full residential street address..." required><?= e($address) ?></textarea>
+                        <?php if (isset($errors['address'])): ?>
+                            <div class="invalid-feedback"><?= e($errors['address']) ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Experience & Qualifications -->
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Experience (Years)</label>
+                        <label class="form-label fw-semibold">Experience (Years) <span class="text-danger">*</span></label>
                         <input type="number" step="0.5" min="0" max="60" name="experience_years"
                                class="form-control <?= isset($errors['experience_years']) ? 'is-invalid' : '' ?>"
-                               value="<?= e((string)$experienceYears) ?>" placeholder="e.g. 4.5">
+                               value="<?= e((string)$experienceYears) ?>" placeholder="e.g. 0 or 4.5" required>
+                        <div class="form-text">Enter 0 if fresher / no experience.</div>
                         <?php if (isset($errors['experience_years'])): ?>
                             <div class="invalid-feedback"><?= e($errors['experience_years']) ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label fw-semibold">Key Skills</label>
-                        <input type="text" name="skills" class="form-control"
-                               value="<?= e($skills) ?>" placeholder="e.g. PHP, Laravel, MySQL, Project Management">
+                        <label class="form-label fw-semibold">Key Skills <span class="text-danger">*</span></label>
+                        <input type="text" name="skills" class="form-control <?= isset($errors['skills']) ? 'is-invalid' : '' ?>"
+                               value="<?= e($skills) ?>" placeholder="e.g. PHP, Laravel, MySQL, Project Management" required>
                         <div class="form-text">Comma-separated list of core competencies.</div>
+                        <?php if (isset($errors['skills'])): ?>
+                            <div class="invalid-feedback"><?= e($errors['skills']) ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="col-12">
-                        <label class="form-label fw-semibold">Qualifications & Education</label>
-                        <textarea name="qualifications" class="form-control" rows="3" placeholder="Degrees, diplomas, certifications, notable achievements..."><?= e($qualifications) ?></textarea>
+                        <label class="form-label fw-semibold">Qualifications & Education <span class="text-danger">*</span></label>
+                        <textarea name="qualifications" class="form-control <?= isset($errors['qualifications']) ? 'is-invalid' : '' ?>" rows="3" placeholder="Degrees, diplomas, certifications, notable achievements..." required><?= e($qualifications) ?></textarea>
+                        <?php if (isset($errors['qualifications'])): ?>
+                            <div class="invalid-feedback"><?= e($errors['qualifications']) ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- CV Upload -->
@@ -487,7 +580,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="form-check">
                             <input class="form-check-input <?= isset($errors['consent_given']) ? 'is-invalid' : '' ?>" type="checkbox" name="consent_given" id="consentGiven" value="1" <?= $consentGiven ? 'checked' : '' ?><?= !$isEdit ? ' required' : '' ?>>
                             <label class="form-check-label small" for="consentGiven">
-                                Candidate has provided privacy consent for AaZa Group to retain profile data and documents in the talent pool for recruitment purposes. <?= !$isEdit ? '<span class="text-danger">*</span>' : '' ?>
+                                Candidate has provided privacy consent for AaZa Group to retain profile data and documents in the talent pool for recruitment purposes. <span class="text-danger">*</span>
                             </label>
                             <?php if (isset($errors['consent_given'])): ?>
                                 <div class="invalid-feedback"><?= e($errors['consent_given']) ?></div>

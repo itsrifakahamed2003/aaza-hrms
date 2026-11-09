@@ -215,18 +215,25 @@ $pageTitle = 'Apply Candidate to Vacancy';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 800px;">
-    <div class="mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/index.php')) ?>">Candidates</a></li>
-                <?php if ($selectedCandidate): ?>
-                    <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$selectedCandidate['id'])) ?>"><?= e($selectedCandidate['candidate_code']) ?></a></li>
-                <?php endif; ?>
-                <li class="breadcrumb-item active" aria-current="page">New Application</li>
-            </ol>
-        </nav>
-        <h1 class="h3 mb-0">Apply Candidate to Vacancy</h1>
-        <p class="text-muted small">One candidate can apply to multiple vacancies across group companies. Duplicate applications to the same vacancy are blocked.</p>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/index.php')) ?>">Candidates</a></li>
+                    <?php if ($selectedCandidate): ?>
+                        <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$selectedCandidate['id'])) ?>"><?= e($selectedCandidate['candidate_code']) ?></a></li>
+                    <?php endif; ?>
+                    <li class="breadcrumb-item active" aria-current="page">New Application</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title h3 mb-0">Apply Candidate to Vacancy</h1>
+            <p class="text-muted small mb-0 mt-1">One candidate can apply to multiple vacancies across group companies. Duplicate applications to the same vacancy are blocked.</p>
+        </div>
+        <div class="page-actions">
+            <a href="<?= e($selectedCandidate ? url('modules/candidates/view.php?id=' . (int)$selectedCandidate['id']) : url('modules/candidates/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
     </div>
 
     <?php if (isset($errors['duplicate'])): ?>

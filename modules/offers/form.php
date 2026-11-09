@@ -7,8 +7,123 @@ require_login();
 $pdo = db();
 
 $appId = (int)($_GET['application_id'] ?? ($_POST['application_id'] ?? 0));
+
+// If no application specified, show candidate selector or guided instructions
 if ($appId <= 0) {
-    abort(404, 'Candidate application not specified.');
+    $scopedManageIds = accessible_company_ids('offer.manage');
+    if (empty($scopedManageIds)) {
+        abort(403, 'You do not have permission to manage job offers in any company.');
+    }
+    $phAcc = implode(',', array_fill(0, count($scopedManageIds), '?'));
+    $readySt = $pdo->prepare(
+        "SELECT ca.id AS app_id, ca.company_id, ca.vacancy_id,
+                c.id AS candidate_id, c.candidate_code, c.first_name, c.last_name,
+                v.vacancy_code, v.title AS vacancy_title,
+                comp.name AS company_name, comp.code AS company_code
+           FROM candidate_applications ca
+           JOIN candidates c ON c.id = ca.candidate_id
+           JOIN job_vacancies v ON v.id = ca.vacancy_id
+           JOIN companies comp ON comp.id = ca.company_id
+          WHERE ca.company_id IN ($phAcc)
+            AND ca.status = 'selected'
+            AND NOT EXISTS (
+                SELECT 1 FROM job_offers jo
+                 WHERE jo.application_id = ca.id
+                   AND jo.status IN ('draft', 'sent', 'accepted')
+            )
+          ORDER BY c.first_name, c.last_name"
+    );
+    $readySt->execute($scopedManageIds);
+    $eligibleCandidates = $readySt->fetchAll();
+
+    $pageTitle = 'Issue New Job Offer';
+    require_once __DIR__ . '/../../includes/header.php';
+    ?>
+    <div class="container-fluid py-4" style="max-width: 800px;">
+        <div class="page-header mb-4">
+            <div class="page-header-title-block">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="<?= e(url('modules/offers/index.php')) ?>">Job Offers</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Issue Offer</li>
+                    </ol>
+                </nav>
+                <h1 class="page-header-title mb-0">Issue New Job Offer</h1>
+                <p class="page-header-desc">Generate an official appointment offer letter for a selected candidate.</p>
+            </div>
+            <div class="page-actions">
+                <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/offers/index.php')) ?>">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Offers
+                </a>
+            </div>
+        </div>
+
+        <?php if (!empty($eligibleCandidates)): ?>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-body py-3">
+                    <h5 class="card-title mb-0 fs-6 fw-bold">Select Candidate to Issue Offer</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="get" action="<?= e(url('modules/offers/form.php')) ?>">
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold" for="appSelect">Candidates in Selected Stage (<?= count($eligibleCandidates) ?> available):</label>
+                            <select name="application_id" id="appSelect" class="form-select" required>
+                                <option value="">-- Choose Candidate Application --</option>
+                                <?php foreach ($eligibleCandidates as $ec): ?>
+                                    <option value="<?= (int)$ec['app_id'] ?>">
+                                        <?= e($ec['first_name'] . ' ' . $ec['last_name']) ?> &bull; <?= e($ec['candidate_code']) ?> &mdash; <?= e($ec['vacancy_title']) ?> (<?= e($ec['company_code']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Only candidates who have been moved to 'Selected' stage appear here.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="<?= e(url('modules/offers/index.php')) ?>" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-4 shadow-sm">
+                                Continue to Offer Details &rarr;
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        <?php else: ?>
+            <div class="card border-0 shadow-sm text-center p-4">
+                <div class="card-body py-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle mb-3" style="width: 72px; height: 72px;">
+                        <i class="bi bi-file-earmark-check fs-2"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">No Candidates Currently Waiting for an Offer</h5>
+                    <p class="text-muted small mx-auto mb-4" style="max-width: 520px;">
+                        In AaZa HRMS, offer letters are generated for candidates who have completed interview evaluations and been advanced to the <strong>Selected</strong> stage on the vacancy pipeline.
+                    </p>
+
+                    <div class="bg-body-tertiary p-3 rounded border text-start mx-auto mb-4" style="max-width: 540px;">
+                        <h6 class="small fw-bold text-uppercase text-muted mb-2">Recruitment Workflow:</h6>
+                        <ol class="small mb-0 ps-3 text-secondary">
+                            <li class="mb-1"><strong>Applied:</strong> Candidate applies to an open vacancy.</li>
+                            <li class="mb-1"><strong>Interviews:</strong> Schedule and evaluate candidate interviews.</li>
+                            <li class="mb-1"><strong>Selected:</strong> Advance the successful candidate to <strong>Selected</strong> on the Pipeline Board.</li>
+                            <li><strong>Issue Offer:</strong> Configure designation, salary, and joining date to generate the official offer.</li>
+                        </ol>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <a href="<?= e(url('modules/vacancies/index.php')) ?>" class="btn btn-primary">
+                            <i class="bi bi-kanban me-1"></i> Open Vacancies &amp; Pipeline Board
+                        </a>
+                        <a href="<?= e(url('modules/candidates/index.php')) ?>" class="btn btn-outline-secondary">
+                            <i class="bi bi-people me-1"></i> View Candidates Pool
+                        </a>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    require_once __DIR__ . '/../../includes/footer.php';
+    exit;
 }
 
 // Fetch application, candidate and vacancy details
@@ -128,74 +243,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 3. Employment type
     if (!array_key_exists($employmentType, employment_type_list())) {
-        $errors[] = 'Please select a valid employment type.';
+        $errors[] = 'Invalid employment type selected.';
     }
 
     // 4. Offer date
     if ($offerDate === '') {
         $errors[] = 'Offer date is required.';
     } else {
-        $od = DateTime::createFromFormat('Y-m-d', $offerDate);
-        if (!$od || $od->format('Y-m-d') !== $offerDate) {
+        $d = DateTime::createFromFormat('Y-m-d', $offerDate);
+        if (!$d || $d->format('Y-m-d') !== $offerDate) {
             $errors[] = 'Offer date must be a valid date in YYYY-MM-DD format.';
         }
     }
 
-    // 5. Expiry date (must be after the offer date)
+    // 5. Expiry date
     if ($expiryDate !== '') {
-        $ed = DateTime::createFromFormat('Y-m-d', $expiryDate);
-        if (!$ed || $ed->format('Y-m-d') !== $expiryDate) {
+        $d = DateTime::createFromFormat('Y-m-d', $expiryDate);
+        if (!$d || $d->format('Y-m-d') !== $expiryDate) {
             $errors[] = 'Expiry date must be a valid date in YYYY-MM-DD format.';
         } elseif ($offerDate !== '' && $expiryDate <= $offerDate) {
-            $errors[] = 'Expiry date must be after the offer date.';
+            $errors[] = 'Offer expiry date must be strictly after the offer date.';
         }
     } else {
         $expiryDate = null;
     }
 
-    // 6. Proposed join date (not in the past)
+    // 6. Proposed join date
     if ($proposedJoinDate !== '') {
-        $jd = DateTime::createFromFormat('Y-m-d', $proposedJoinDate);
-        if (!$jd || $jd->format('Y-m-d') !== $proposedJoinDate) {
-            $errors[] = 'Proposed join date must be a valid date in YYYY-MM-DD format.';
-        } elseif ($proposedJoinDate < date('Y-m-d')) {
-            $errors[] = 'Proposed join date cannot be in the past.';
+        $d = DateTime::createFromFormat('Y-m-d', $proposedJoinDate);
+        if (!$d || $d->format('Y-m-d') !== $proposedJoinDate) {
+            $errors[] = 'Proposed joining date must be a valid date in YYYY-MM-DD format.';
         }
     } else {
         $proposedJoinDate = null;
     }
 
-    // 7. Offered salary (only users with salary.view can see or edit it)
+    // 7. Salary validation
     $finalSalary = null;
-    if ($canSalary) {
-        if ($offeredSalaryVal !== '') {
-            if (!is_numeric($offeredSalaryVal) || (float)$offeredSalaryVal < 0 || (float)$offeredSalaryVal > 9999999999.99) {
-                $errors[] = 'Offered salary must be a valid non-negative number up to 9,999,999,999.99.';
-            } else {
-                $finalSalary = round((float)$offeredSalaryVal, 2);
-            }
+    if ($offeredSalaryVal !== '') {
+        if (!is_numeric($offeredSalaryVal) || (float)$offeredSalaryVal < 0) {
+            $errors[] = 'Offered salary must be a positive number.';
+        } elseif ((float)$offeredSalaryVal > 9999999999.99) {
+            $errors[] = 'Offered salary cannot exceed 9,999,999,999.99.';
+        } else {
+            $finalSalary = round((float)$offeredSalaryVal, 2);
         }
     }
 
-    // Re-check active offer inside transaction
+    // Save offer
     if (empty($errors)) {
         try {
             $pdo->beginTransaction();
 
-            // Lock application row and re-verify status
-            $lockApp = $pdo->prepare('SELECT id, status FROM candidate_applications WHERE id = ? FOR UPDATE');
-            $lockApp->execute([$appId]);
-            $curApp = $lockApp->fetch();
-            if (!$curApp || (string)$curApp['status'] !== 'selected') {
-                $pdo->rollBack();
-                flash_set('danger', "Application is no longer in Selected status. Offer creation cancelled.");
-                redirect('modules/candidates/view.php?id=' . (int)$application['cand_id']);
-            }
-
-            // Check if active offer was added concurrently
-            $chkActive = $pdo->prepare("SELECT id FROM job_offers WHERE application_id = ? AND status IN ('draft', 'sent') FOR UPDATE");
-            $chkActive->execute([$appId]);
-            if ($chkActive->fetch()) {
+            $reCheck = $pdo->prepare(
+                "SELECT id FROM job_offers WHERE application_id = ? AND status IN ('draft', 'sent') LIMIT 1 FOR UPDATE"
+            );
+            $reCheck->execute([$appId]);
+            if ($reCheck->fetch()) {
                 $pdo->rollBack();
                 flash_set('danger', 'An active job offer already exists for this application.');
                 redirect('modules/candidates/view.php?id=' . (int)$application['cand_id']);
@@ -270,24 +374,43 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 900px;">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-1">
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/offers/index.php')) ?>">Offers</a></li>
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['cand_id'])) ?>"><?= e($application['first_name'] . ' ' . $application['last_name']) ?></a></li>
-            <li class="breadcrumb-item active" aria-current="page">New Job Offer</li>
-        </ol>
-    </nav>
+    <div class="page-header mb-3">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/offers/index.php')) ?>">Job Offers</a></li>
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['cand_id'])) ?>"><?= e($application['first_name'] . ' ' . $application['last_name']) ?></a></li>
+                    <li class="breadcrumb-item active" aria-current="page">New Offer</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title mb-0">Create Job Offer Letter</h1>
+            <p class="page-header-desc">Configure employment terms, salary, and joining date for this candidate.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['cand_id'])) ?>">
+                <i class="bi bi-arrow-left me-1"></i> Back to Candidate
+            </a>
+        </div>
+    </div>
 
     <!-- Candidate Context Card -->
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body">
+        <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <span class="badge bg-body-secondary text-body border me-1"><?= e($application['company_code']) ?></span>
-                    <strong class="fs-5 text-body"><?= e($application['first_name'] . ' ' . $application['last_name']) ?></strong>
-                    <span class="badge text-bg-primary ms-2"><?= e($application['candidate_code']) ?></span>
-                    <div class="small text-muted mt-1">
-                        Vacancy: <strong class="text-body"><?= e($application['vacancy_title']) ?></strong> (<?= e($application['vacancy_code']) ?>) &bull; <?= e($application['company_name']) ?>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-primary text-white p-3 rounded-circle shadow-sm">
+                        <i class="bi bi-person fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-body-secondary text-body border font-monospace"><?= e($application['company_code']) ?></span>
+                            <strong class="fs-5 text-body"><?= e($application['first_name'] . ' ' . $application['last_name']) ?></strong>
+                            <span class="badge text-bg-primary font-monospace"><?= e($application['candidate_code']) ?></span>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            Vacancy: <strong class="text-body"><?= e($application['vacancy_title']) ?></strong> (<code><?= e($application['vacancy_code']) ?></code>) &bull; <?= e($application['company_name']) ?>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -313,7 +436,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <!-- Offer Form Card -->
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-body py-3">
-            <h5 class="card-title mb-0">Create Job Offer Details</h5>
+            <h5 class="card-title mb-0 fs-6 fw-bold">Appointment &amp; Compensation Terms</h5>
         </div>
         <div class="card-body p-4">
             <form method="post" action="<?= e(url('modules/offers/form.php?application_id=' . $appId)) ?>" novalidate autocomplete="off">
@@ -322,7 +445,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Department <span class="text-muted small">(for <?= e($application['company_name']) ?>)</span></label>
+                        <label class="form-label fw-semibold">Department <span class="text-muted small">(in <?= e($application['company_name']) ?>)</span></label>
                         <select name="department_id" class="form-select">
                             <option value="0">-- Select Department --</option>
                             <?php foreach ($departments as $d): ?>
@@ -331,11 +454,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <div class="form-text">Department must belong to <?= e($application['company_name']) ?>.</div>
+                        <div class="form-text">Assigned organizational unit for this role.</div>
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Designation / Position <span class="text-muted small">(for <?= e($application['company_name']) ?>)</span></label>
+                        <label class="form-label fw-semibold">Designation / Title <span class="text-muted small">(in <?= e($application['company_name']) ?>)</span></label>
                         <select name="designation_id" class="form-select">
                             <option value="0">-- Select Designation --</option>
                             <?php foreach ($designations as $des): ?>
@@ -344,7 +467,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <div class="form-text">Designation must belong to <?= e($application['company_name']) ?>.</div>
+                        <div class="form-text">Official position title on the employment contract.</div>
                     </div>
                 </div>
 
@@ -369,28 +492,28 @@ require_once __DIR__ . '/../../includes/header.php';
                                        class="form-control" placeholder="e.g. 150000.00"
                                        value="<?= e((string)$form['offered_salary']) ?>">
                             </div>
-                            <div class="form-text">Visible only to users with <code>salary.view</code>. Leave blank if not determined.</div>
+                            <div class="form-text">Visible only to authorized HR officers. Leave blank if to be confirmed.</div>
                         </div>
                     <?php endif; ?>
                 </div>
 
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Offer Date <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold">Offer Issue Date <span class="text-danger">*</span></label>
                         <input type="date" name="offer_date" class="form-control" required value="<?= e($form['offer_date']) ?>">
-                        <div class="form-text">Date the formal offer is issued.</div>
+                        <div class="form-text">Official issuance date.</div>
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Offer Expiry Date</label>
                         <input type="date" name="expiry_date" class="form-control" value="<?= e($form['expiry_date']) ?>">
-                        <div class="form-text">Must be after the offer date. Auto-expires when passed.</div>
+                        <div class="form-text">Auto-expires if candidate does not reply.</div>
                     </div>
 
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Proposed Joining Date</label>
                         <input type="date" name="proposed_join_date" class="form-control" value="<?= e($form['proposed_join_date']) ?>">
-                        <div class="form-text">Cannot be in the past.</div>
+                        <div class="form-text">Target start date for the employee.</div>
                     </div>
                 </div>
 
@@ -398,7 +521,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['cand_id'])) ?>" class="btn btn-outline-secondary">
                         Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary px-4">
+                    <button type="submit" class="btn btn-primary px-4 shadow-sm">
                         <i class="bi bi-file-earmark-plus me-1"></i> Save as Draft Offer
                     </button>
                 </div>

@@ -33,6 +33,7 @@ Thumbs.db
 .vscode/
 
 # Test evidence, verification screenshots & scripts
+storage/screenshots/
 polish_screenshots/
 screenshots/
 verification_screenshots*/

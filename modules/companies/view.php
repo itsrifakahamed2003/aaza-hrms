@@ -45,57 +45,79 @@ $canDelete = ($isGroupAdmin || user_can('company.delete')) && (int)$company['is_
 $pageTitle = $company['name'];
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="mb-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb breadcrumb-clean mb-1">
-            <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/companies/index.php')) ?>">Companies</a></li>
-            <li class="breadcrumb-item active" aria-current="page"><?= e($company['name']) ?></li>
-        </ol>
-    </nav>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="d-flex align-items-center gap-3">
-            <?= company_logo_html($company, $company['name'], 'lg', 'shadow-sm') ?>
-            <div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <h1 class="page-header-title mb-0"><?= e($company['name']) ?></h1>
-                    <span class="badge bg-body-secondary text-body border font-monospace"><?= e($company['code']) ?></span>
-                    <?= $company['is_active']
-                        ? '<span class="badge badge-soft-success">Active</span>'
-                        : '<span class="badge badge-soft-secondary">Inactive</span>' ?>
-                </div>
-                <div class="text-muted small mt-1">
-                    <?= !empty($company['email']) ? '<i class="bi bi-envelope me-1"></i>' . e($company['email']) : '' ?>
-                    <?= (!empty($company['email']) && !empty($company['phone'])) ? '&bull; ' : '' ?>
-                    <?= !empty($company['phone']) ? '<i class="bi bi-telephone me-1"></i>' . e($company['phone']) : '' ?>
-                </div>
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="<?= e(url('modules/companies/index.php')) ?>">Companies</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><?= e($company['name']) ?></li>
+    </ol>
+</nav>
+
+<!-- Detail Header -->
+<div class="detail-header">
+    <div class="detail-header-main d-flex align-items-center gap-3">
+        <?= company_logo_html($company, $company['name'], 'lg', 'shadow-sm flex-shrink-0') ?>
+        <div>
+            <div class="detail-header-title-row">
+                <h1 class="detail-header-title"><?= e($company['name']) ?></h1>
+                <span class="badge bg-body-secondary text-body border font-monospace"><?= e($company['code']) ?></span>
+                <?= $company['is_active']
+                    ? '<span class="badge text-bg-success">Active</span>'
+                    : '<span class="badge text-bg-secondary">Inactive</span>' ?>
             </div>
+            <p class="detail-header-subtitle">
+                <?= !empty($company['email']) ? '<i class="bi bi-envelope me-1"></i>' . e($company['email']) : '' ?>
+                <?= (!empty($company['email']) && !empty($company['phone'])) ? '&bull; ' : '' ?>
+                <?= !empty($company['phone']) ? '<i class="bi bi-telephone me-1"></i>' . e($company['phone']) : '' ?>
+            </p>
         </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-            <a href="<?= e(url('modules/companies/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Companies
+    </div>
+
+    <div class="detail-header-actions">
+        <!-- ONE Primary Button -->
+        <?php if ($canManageCompany): ?>
+            <a href="<?= e(url('modules/companies/form.php?id=' . $companyId)) ?>" class="btn btn-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i> Edit Company
             </a>
-            <?php if ($canSettings): ?>
-                <a href="<?= e(url('modules/companies/settings.php?id=' . $companyId)) ?>" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-gear me-1"></i>Settings
-                </a>
-            <?php endif; ?>
-            <?php if ($canManageCompany): ?>
-                <a href="<?= e(url('modules/companies/form.php?id=' . $companyId)) ?>" class="btn btn-primary btn-sm">
-                    <i class="bi bi-pencil me-1"></i>Edit Company
-                </a>
-            <?php endif; ?>
-            <?php if ($canDelete): ?>
-                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteCompanyModal">
-                    <i class="bi bi-trash me-1"></i>Delete
-                </button>
-            <?php endif; ?>
-        </div>
+        <?php endif; ?>
+
+        <!-- ONE "More" 3-dot menu -->
+        <?php
+        $cmpMore = [];
+        if ($canSettings) {
+            $cmpMore[] = [
+                'type' => 'link',
+                'icon' => 'bi-gear',
+                'label' => 'Settings',
+                'url' => 'modules/companies/settings.php?id=' . $companyId,
+            ];
+        }
+        $cmpMore[] = [
+            'type' => 'link',
+            'icon' => 'bi-arrow-left',
+            'label' => 'Back to Companies',
+            'url' => 'modules/companies/index.php',
+        ];
+        if ($canDelete) {
+            $cmpMore[] = [
+                'type' => 'button',
+                'icon' => 'bi-trash',
+                'label' => 'Delete Company',
+                'modal' => '#deleteCompanyModal',
+                'danger' => true,
+            ];
+        }
+        echo action_menu($cmpMore, [
+            'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+            'aria_label' => 'More company actions',
+        ]);
+        ?>
     </div>
 </div>
 
 <!-- KPI Stat Cards -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3">
     <div class="col-sm-6 col-xl-3">
         <?= ui_stat_card('Active Staff', $empCount, 'bi-people', 'primary', "Total: {$totalEmpCount} historical", 'modules/employees/index.php?company_id=' . $companyId, 'View Employees &rarr;') ?>
     </div>
@@ -110,33 +132,45 @@ require __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<div class="row g-4">
+<div class="row g-3 align-items-start">
     <!-- Company Profile & Contact Card -->
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-body py-3">
-                <h5 class="card-title mb-0 fs-6 fw-bold">Company Profile</h5>
+        <div class="detail-card">
+            <div class="card-header">
+                <span>Company Profile</span>
             </div>
             <div class="card-body">
-                <dl class="mb-0">
-                    <dt class="small text-muted">Legal Entity Name</dt>
-                    <dd class="fw-semibold text-body mb-3"><?= e($company['name']) ?></dd>
+                <div class="kv-list kv-list-single">
+                    <div class="kv-item">
+                        <span class="kv-label">Legal Entity Name</span>
+                        <span class="kv-value fw-semibold"><?= e($company['name']) ?></span>
+                    </div>
 
-                    <dt class="small text-muted">Company Identifier Code</dt>
-                    <dd class="font-monospace text-body mb-3"><?= e($company['code']) ?></dd>
+                    <div class="kv-item">
+                        <span class="kv-label">Company Identifier Code</span>
+                        <span class="kv-value font-monospace"><?= e($company['code']) ?></span>
+                    </div>
 
-                    <dt class="small text-muted">Primary Email</dt>
-                    <dd class="text-body mb-3"><?= !empty($company['email']) ? e($company['email']) : '<span class="text-muted fst-italic">Not specified</span>' ?></dd>
+                    <div class="kv-item">
+                        <span class="kv-label">Primary Email</span>
+                        <span class="kv-value"><?= !empty($company['email']) ? e($company['email']) : '—' ?></span>
+                    </div>
 
-                    <dt class="small text-muted">Contact Phone</dt>
-                    <dd class="text-body mb-3"><?= !empty($company['phone']) ? e($company['phone']) : '<span class="text-muted fst-italic">Not specified</span>' ?></dd>
+                    <div class="kv-item">
+                        <span class="kv-label">Contact Phone</span>
+                        <span class="kv-value"><?= !empty($company['phone']) ? e($company['phone']) : '—' ?></span>
+                    </div>
 
-                    <dt class="small text-muted">Registered Address</dt>
-                    <dd class="text-body mb-3"><?= !empty($company['address']) ? nl2br(e($company['address'])) : '<span class="text-muted fst-italic">No address recorded</span>' ?></dd>
+                    <div class="kv-item">
+                        <span class="kv-label">Registered Address</span>
+                        <span class="kv-value small"><?= !empty($company['address']) ? nl2br(e($company['address'])) : '—' ?></span>
+                    </div>
 
-                    <dt class="small text-muted">Record Created</dt>
-                    <dd class="small text-muted mb-0"><?= e(format_datetime($company['created_at'])) ?></dd>
-                </dl>
+                    <div class="kv-item pt-2 border-top">
+                        <span class="kv-label">Record Created</span>
+                        <span class="kv-value small text-muted"><?= e(format_datetime($company['created_at'])) ?></span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

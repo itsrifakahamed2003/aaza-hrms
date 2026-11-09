@@ -146,7 +146,22 @@ try {
         }
     }
 
-    flash_set('success', 'Application status updated to ' . ($manualStatuses[$newStatus] ?? $newStatus) . '.');
+    $sendEmailRequested = !empty($_POST['send_email']) && in_array($newStatus, ['shortlisted', 'selected', 'rejected'], true);
+    if ($sendEmailRequested) {
+        try {
+            $mailRes = mail_send_candidate_template($pdo, $appId, $newStatus);
+            if (!empty($mailRes['ok'])) {
+                flash_set('success', 'Application status updated to ' . ($manualStatuses[$newStatus] ?? $newStatus) . ' and email sent to candidate.');
+            } else {
+                $mailErrText = trim((string)($mailRes['error'] ?? 'Email delivery failed.'));
+                flash_set('warning', 'Saved, but the email could not be sent: ' . $mailErrText);
+            }
+        } catch (Throwable $mailEx) {
+            flash_set('warning', 'Saved, but the email could not be sent: Unexpected mail error.');
+        }
+    } else {
+        flash_set('success', 'Application status updated to ' . ($manualStatuses[$newStatus] ?? $newStatus) . '.');
+    }
 } catch (RuntimeException|InvalidArgumentException $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

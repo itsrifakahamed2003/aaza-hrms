@@ -166,8 +166,8 @@ include_once ROOT_PATH . '/includes/header.php';
 
 <div class="container-fluid px-3 px-md-4 py-3">
     <!-- Breadcrumb & Header -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-        <div>
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1.5 small">
                     <li class="breadcrumb-item"><a href="<?= url('index.php') ?>" class="text-decoration-none">Dashboard</a></li>
@@ -175,22 +175,22 @@ include_once ROOT_PATH . '/includes/header.php';
                 </ol>
             </nav>
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <h1 class="h3 fw-bold mb-0 text-body">
+                <h1 class="page-header-title h3 fw-bold mb-0 text-body">
                     <i class="bi bi-bell-fill me-2 text-primary"></i>Notifications Center
                 </h1>
                 <?php if ($unreadCount > 0): ?>
-                    <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 small fw-semibold">
+                    <span class="badge rounded-pill bg-danger-subtle text-danger-emphasis border border-danger-subtle px-2.5 py-1 small fw-semibold">
                         <?= $unreadCount ?> unread
                     </span>
                 <?php else: ?>
-                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1 small fw-medium">
+                    <span class="badge rounded-pill bg-success-subtle text-success-emphasis border border-success-subtle px-2.5 py-1 small fw-medium">
                         <i class="bi bi-check2 me-1"></i>All caught up
                     </span>
                 <?php endif; ?>
             </div>
             <p class="text-secondary small mb-0 mt-1">Review workflow updates, system alerts, and notifications.</p>
         </div>
-        <div>
+        <div class="page-actions">
             <?php if ($unreadCount > 0): ?>
                 <form method="POST" action="<?= url('modules/notifications/index.php') ?>" class="d-inline">
                     <?= csrf_field() ?>

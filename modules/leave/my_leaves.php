@@ -180,20 +180,20 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 1200px;">
     <!-- Top Bar & Breadcrumb -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Home</a></li>
                     <li class="breadcrumb-item active" aria-current="page">My Leave</li>
                 </ol>
             </nav>
-            <div class="d-flex align-items-center gap-3">
-                <h1 class="h3 mb-0">My Leave Applications</h1>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <h1 class="page-header-title h3 mb-0">My Leave Applications</h1>
                 <span class="badge bg-body-secondary text-body border"><?= e($employee['company_code']) ?> &bull; <?= e($employee['employee_code']) ?></span>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="page-actions">
             <a href="<?= e(url('modules/attendance/employee_attendance.php')) ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-calendar-check me-1"></i> My Attendance
             </a>
@@ -245,8 +245,13 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <!-- Leave Requests Table -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">Leave History &amp; Applications (<?= count($myRequests) ?>)</h5>
+        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="card-title mb-0 fs-6 fw-bold">Leave History &amp; Applications (<?= count($myRequests) ?>)</h5>
+                <small class="text-muted d-block mt-0.5">
+                    <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any row to view full leave details.
+                </small>
+            </div>
             <small class="text-muted">Calendar Year <?= e((string)$currentYear) ?></small>
         </div>
         <div class="card-body p-0">
@@ -260,7 +265,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th>Reason / Doc</th>
                             <th>Status</th>
                             <th>Decision Details</th>
-                            <th class="text-end pe-3">Actions</th>
+                            <th class="text-end pe-3 action-col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -282,8 +287,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                 $status = (string)$r['status'];
                                 $isApprovedFuture = ($status === 'approved' && $r['start_date'] > date('Y-m-d'));
                                 $canCancel = ($status === 'pending' || $isApprovedFuture);
+                                $myLeaveViewUrl = url('modules/leave/view.php?id=' . (int)$r['id']);
                                 ?>
-                                <tr>
+                                <tr class="clickable-row leave-row" data-href="<?= e($myLeaveViewUrl) ?>" title="Double-click to view leave application #<?= (int)$r['id'] ?>">
                                     <td class="ps-3">
                                         <span class="fw-semibold text-body"><?= e($r['leave_type_name']) ?></span>
                                         <?php if ((int)$r['half_day'] === 1): ?>
@@ -336,20 +342,31 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <span class="text-muted small">—</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <?php if ($canCancel): ?>
-                                            <form method="post" action="<?= e(url('modules/leave/my_leaves.php')) ?>" class="d-inline"
-                                                  data-confirm="Are you sure you want to cancel this leave application (Ref #<?= (int)$r['id'] ?>)?" data-confirm-type="danger">
-                                                <?= csrf_field() ?>
-                                                <input type="hidden" name="action" value="cancel">
-                                                <input type="hidden" name="request_id" value="<?= (int)$r['id'] ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="bi bi-x-circle me-1"></i> Cancel
-                                                </button>
-                                            </form>
-                                        <?php else: ?>
-                                            <span class="text-muted small">—</span>
-                                        <?php endif; ?>
+                                    <td class="text-end pe-3 action-col">
+                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                            <a href="<?= e(url('modules/leave/view.php?id=' . (int)$r['id'])) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5" title="View details">
+                                                <i class="bi bi-eye me-1"></i>View
+                                            </a>
+                                            <?= action_menu([
+                                                [
+                                                    'type'  => 'link',
+                                                    'label' => 'View Application',
+                                                    'url'   => 'modules/leave/view.php?id=' . (int)$r['id'],
+                                                    'icon'  => 'bi-eye',
+                                                ],
+                                                [
+                                                    'type'         => 'post',
+                                                    'label'        => 'Cancel Request',
+                                                    'url'          => 'modules/leave/my_leaves.php',
+                                                    'icon'         => 'bi-x-circle',
+                                                    'params'       => ['action' => 'cancel', 'request_id' => (int)$r['id']],
+                                                    'confirm'      => "Are you sure you want to cancel this leave application (Ref #" . (int)$r['id'] . ")?",
+                                                    'confirm_type' => 'danger',
+                                                    'danger'       => true,
+                                                    'permission'   => (bool)$canCancel,
+                                                ],
+                                            ]) ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

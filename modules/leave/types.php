@@ -253,22 +253,22 @@ $pageTitle = 'Leave Types Management';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 1200px;">
-    <!-- Breadcrumb -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
+    <!-- Breadcrumb & Page Header -->
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?= e(url('modules/leave/index.php')) ?>">Leave</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Leave Types</li>
                 </ol>
             </nav>
-            <h1 class="h3 mb-0">Leave Types &amp; Policy Allowances</h1>
+            <h1 class="page-header-title mb-0">Leave Types &amp; Policy Allowances</h1>
         </div>
-        <div class="d-flex gap-2">
-            <a href="<?= e(url('modules/leave/index.php')) ?>" class="btn btn-outline-secondary">
+        <div class="page-header-actions page-actions">
+            <a href="<?= e(url('modules/leave/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-calendar2-range me-1"></i> Leave Requests
             </a>
-            <a href="<?= e(url('modules/leave/reports.php')) ?>" class="btn btn-outline-primary">
+            <a href="<?= e(url('modules/leave/reports.php')) ?>" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-bar-chart me-1"></i> Leave Reports
             </a>
         </div>
@@ -283,10 +283,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         <i class="bi bi-card-checklist text-primary fs-5"></i>
                         <h5 class="card-title mb-0">Configured Leave Types (<?= count($leaveTypes) ?>)</h5>
                     </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <small class="text-body-secondary">Deactivate first to safely delete types with no leave records.</small>
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <small class="text-body-secondary d-none d-md-inline">Deactivate first to safely delete types with no leave records.</small>
                         <a href="#leaveTypeFormCard" class="btn btn-sm btn-primary">
-                            <i class="bi bi-plus-lg me-1"></i> Add Leave Type
+                            <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Add Leave Type</span><span class="d-sm-none">Add Type</span>
                         </a>
                     </div>
                 </div>
@@ -299,7 +299,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <th style="min-width: 140px;">Days / Year</th>
                                     <th style="min-width: 140px;">Requires Doc</th>
                                     <th style="min-width: 120px;">Status</th>
-                                    <th class="text-end pe-3" style="min-width: 140px;">Actions</th>
+                                    <th class="text-end pe-3 action-col">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -334,7 +334,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                             </td>
                                             <td>
                                                 <?php if ((int)$t['requires_document'] === 1): ?>
-                                                    <span class="badge text-bg-warning text-body"><i class="bi bi-paperclip me-1"></i>Required</span>
+                                                    <span class="badge text-bg-warning"><i class="bi bi-paperclip me-1"></i>Required</span>
                                                 <?php else: ?>
                                                     <span class="text-muted small">No</span>
                                                 <?php endif; ?>
@@ -349,24 +349,31 @@ require_once __DIR__ . '/../../includes/header.php';
                                                     <span class="text-muted small d-block" style="font-size:0.75rem;"><?= (int)$t['used_count'] ?> requests</span>
                                                 <?php endif; ?>
                                             </td>
-                                            <td class="text-end pe-3">
-                                                <div class="btn-group btn-group-sm">
-                                                    <a href="<?= e(url('modules/leave/types.php?edit=' . (int)$t['id'] . '#leaveTypeFormCard')) ?>" class="btn btn-outline-primary" title="Edit Policy">
-                                                        <i class="bi bi-pencil"></i> Edit
+                                            <td class="text-end pe-3 action-col">
+                                                <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                                    <a href="<?= e(url('modules/leave/types.php?edit=' . (int)$t['id'] . '#leaveTypeFormCard')) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5" title="Edit Policy">
+                                                        <i class="bi bi-pencil me-1"></i>Edit
                                                     </a>
-                                                    <form method="post" action="<?= e(url('modules/leave/types.php')) ?>" class="d-inline" data-confirm="Toggle active status for '<?= e($t['name']) ?>'?" data-confirm-type="warning">
-                                                        <?= csrf_field() ?>
-                                                        <input type="hidden" name="action" value="toggle_active">
-                                                        <input type="hidden" name="type_id" value="<?= (int)$t['id'] ?>">
-                                                        <button type="submit" class="btn btn-outline-<?= (int)$t['is_active'] === 1 ? 'warning' : 'success' ?>" title="<?= (int)$t['is_active'] === 1 ? 'Deactivate' : 'Activate' ?>">
-                                                            <i class="bi bi-power"></i>
-                                                        </button>
-                                                    </form>
-                                                    <?php if ($canDeleteType && (int)$t['is_active'] === 0 && (int)$t['used_count'] === 0): ?>
-                                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteLeaveTypeModal<?= (int)$t['id'] ?>" title="Delete leave type">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    <?php endif; ?>
+                                                    <?= action_menu([
+                                                        [
+                                                            'type'         => 'post',
+                                                            'label'        => (int)$t['is_active'] === 1 ? 'Deactivate' : 'Activate',
+                                                            'url'          => 'modules/leave/types.php',
+                                                            'icon'         => (int)$t['is_active'] === 1 ? 'bi-pause-circle' : 'bi-play-circle',
+                                                            'params'       => ['action' => 'toggle_active', 'type_id' => (int)$t['id']],
+                                                            'confirm'      => "Toggle active status for '" . $t['name'] . "'?",
+                                                            'confirm_type' => 'warning',
+                                                            'danger'       => ((int)$t['is_active'] === 1),
+                                                        ],
+                                                        [
+                                                            'type'       => 'button',
+                                                            'label'      => 'Delete Policy',
+                                                            'icon'       => 'bi-trash',
+                                                            'modal'      => '#deleteLeaveTypeModal' . (int)$t['id'],
+                                                            'danger'     => true,
+                                                            'permission' => ($canDeleteType && (int)$t['is_active'] === 0 && (int)$t['used_count'] === 0),
+                                                        ],
+                                                    ]) ?>
                                                 </div>
                                             </td>
                                         </tr>

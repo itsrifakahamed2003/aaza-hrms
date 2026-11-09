@@ -352,7 +352,7 @@ All notable changes to the AaZa Multi-Company HR & Recruitment Management System
 
 ---
 
-## Phase 21 - Production Hosting Readiness, Web Installer & System Health
+## Phase 21 - Production Hosting Readiness & Web Installer
 - **Single-File Database Installer (`database/aaza_hrms_full.sql`):** Consolidated single-file database installer without `USE` or `CREATE DATABASE` commands, fully compatible with cPanel prefixed databases.
 - **Migration Compiler Tool (`tools/build_full_sql.php`):** Automated tool to compile versioned migrations from `database/migrations/` in documented sequence with `--check` verification mode.
 - **Automated 3-Step Web Installer (`public/setup.php`):** Interactive web installer evaluating system requirements, executing database migrations statement by statement, provisioning the organization and initial administrator, creating `storage/installed.lock`, and self-deleting.
@@ -364,7 +364,6 @@ All notable changes to the AaZa Multi-Company HR & Recruitment Management System
   - Custom branded error pages: `public/403.php`, `public/404.php`, and `public/500.php`.
   - Comprehensive `.htaccess` with asset caching, Gzip compression, and directory access denial.
   - Added `.user.ini` with recommended production limits.
-- **Administrator System Health Dashboard (`modules/system/health.php`):** Real-time monitoring of PHP extensions, DB latency/version, storage permissions, backup timestamps, and security alerts.
 - **Production Release Packager (`tools/make_release.php`):** CLI utility producing a sanitized `aaza_hrms_release.zip` package ready for shared hosting and VPS deployment.
 - **Documentation:** Authored comprehensive `docs/USER_MANUAL.md` covering all roles and operational modules.
 
@@ -380,10 +379,49 @@ All notable changes to the AaZa Multi-Company HR & Recruitment Management System
   - Strict input sanitization with regex for database host (`^[A-Za-z0-9._:-]{1,255}$`), database name, and username (`^[A-Za-z0-9_$.-]{1,64}$`), strict port integer casting, and `var_export()` escaping to prevent code injection.
   - Immediate HTTP 403 Forbidden rejection when `storage/installed.lock` exists or registered users are present.
   - Error message masking: raw DB exception traces suppressed when in production environment.
-- **System Health & Diagnostics (`modules/system/health.php`):**
-  - Fully restored diagnostics module accessible exclusively to Group Administrators under Administration in `includes/header.php`.
-  - Monitors PHP >= 8.0 runtime, mandatory/optional extensions, database connection status, storage directory write permissions, and backup freshness (< 3 days).
-  - Actively scans for `public/setup.php` presence and provides a 1-click CSRF-protected removal action directly from the dashboard.
 - **Test Suite Expansion (`tests/run_tests.php`):**
   - Added Test Suite 24 assertions covering malicious `db_name` rejection (quote and PHP code injection prevention), `installed.lock` refusal (HTTP 403), and release zip contents verification (inclusion of `public/setup.php` and `database/aaza_hrms_full.sql`; exclusion of `installed.lock`, active configs, tests, docs, and `.git`).
   - Total test assertions increased to 167 passing 100% cleanly.
+
+---
+
+## Phase 23 - Responsive UI Fixes, Standardized 3-Dot Action Menus & Row Navigation
+- **Responsive Mobile & Desktop Layouts (`assets/css/components.css`, `assets/css/app.css`):**
+  - Eliminated horizontal overflow and squashed action toolbars across 360px mobile and 1366px desktop viewports in both light and dark themes.
+  - Added responsive `.page-actions` wrapping and table cell truncation controls.
+- **Standardized 3-Dot Action Menus (`includes/ui.php`, `action_menu()`):**
+  - Unified table row actions across directory pages (`employees`, `vacancies`, `candidates`, `interviews`, `offers`, `leave`, `companies`, `users`, `roles`, `organization`, `performance`) using a primary action button paired with an accessible 3-dot dropdown menu (`action_menu()`).
+  - Fixed dropdown clipping inside `.table-responsive` containers via `data-bs-strategy="fixed"` / Popper positioning.
+- **Double-Click / Double-Tap Row Navigation (`assets/js/app.js`):**
+  - Added global `initDoubleTapRowView()` handler enabling desktop double-click and mobile double-tap on `tr[data-view-url]` rows across `employees`, `leave`, `vacancies`, `candidates`, `interviews`, `offers`, and `companies` to navigate directly to the row's primary View page while ignoring interactive controls.
+
+---
+
+## Phase 24 - Server-Side Input Validation, Pipeline Board Switcher & Offers Redesign
+- **Strict Input Validation (`includes/validation.php`):**
+  - Added centralized validators for emails (`validate_email_address`), Sri Lankan / international phone numbers (`validate_phone`), Sri Lankan NIC / Passport formats (`validate_nic_or_passport`), dates, and numeric ranges.
+  - Enforced server-side validation across candidate, employee, company, vacancy, and offer forms.
+- **Pipeline Board Quick Access & Vacancy Switcher (`modules/vacancies/index.php`, `modules/vacancies/pipeline.php`):**
+  - Added top-bar "Pipeline Board" button on the Vacancies directory (`modules/vacancies/index.php`) and a "Switch Vacancy" dropdown on `modules/vacancies/pipeline.php` showing applicant counts per vacancy.
+- **Job Offers Directory & View Redesign (`modules/offers/index.php`, `modules/offers/view.php`):**
+  - Streamlined KPI filter cards, simplified table rows, and unified the "Onboard Candidate as Active Employee" card with duplicate-employee detection in the same company.
+
+---
+
+## Phase 25 - Candidate Email Notification Engine & Interactive Email UI
+- **Plain-PHP Email Engine (`includes/mailer.php`, `config/config.sample.php`):**
+  - Implemented `mail_is_configured()` and `mail_send()` supporting `'smtp'`, `'phpmail'`, and `'none'` drivers without external libraries.
+  - Built RFC-compliant SMTP socket client (`stream_socket_client`, 10s timeout, peer certificate verification, port 465 implicit SSL and port 587 STARTTLS, `EHLO`, `AUTH LOGIN` with `AUTH PLAIN` fallback, `MAIL FROM`, `RCPT TO`, RFC 5321 dot-stuffed `DATA` with CRLF endings, `QUIT`).
+  - Constructed `multipart/alternative` MIME messages (UTF-8 base64 `text/plain` + `text/html`), RFC 2047 Subject/From encoding, header CR/LF stripping, 200-char subject limit, 50 KB body limit, and strict `MAIL_PASSWORD` scrubbing from all logs and error strings.
+- **Responsive Candidate Email Templates (`includes/mail_templates.php`):**
+  - Implemented 6 HTML-escaped templates with plain-text counterparts and automated HR footers: `mail_tpl_application_received`, `mail_tpl_shortlisted`, `mail_tpl_interview_invite`, `mail_tpl_selected`, `mail_tpl_rejected`, and `mail_tpl_offer_sent`.
+  - Added `mail_send_candidate_template()` and `mail_build_candidate_template_preview()` enforcing RBAC (`candidate.manage` / `interview.schedule`), per-user rate limiting (`check_rate_limit('candidate_email', 10, 60)`), custom HR subject/body overrides, and `activity_logs` recording (`candidate.email_sent` / `candidate.email_failed`).
+- **Candidate Email UI, Preview Modal & Mailto Fallback (`modules/candidates/email.php`, `modules/candidates/view.php`, `modules/interviews/view.php`):**
+  - Added `modules/candidates/email.php` endpoint (`POST` + CSRF) supporting `action=preview` (JSON) and `action=send`.
+  - Added "Email candidate" template dropdown and interactive Preview Modal (read-only `To` showing the real candidate email to authorized users, editable `Subject` and `Body`, and either a `Send` button when configured or an `"Open in mail app"` `mailto:` fallback kept strictly under 1800 characters).
+  - Added "Email History" card on `modules/candidates/view.php` built from `activity_logs` (who, template, timestamp, and sent/failed status).
+- **Non-Blocking Automated Triggers & Settings Status (`modules/interviews/schedule.php`, `modules/candidates/status_change.php`, `public/apply.php`, `modules/companies/settings.php`):**
+  - Added optional "Email the candidate" checkbox (checked by default only when `mail_is_configured()` is true) on interview scheduling and candidate status changes (`shortlisted`, `selected`, `rejected`). Any send failure displays a warning flash (`"Saved, but the email could not be sent: ..."`) and never blocks database commits.
+  - Added silent `"application_received"` email dispatch on `public/apply.php` when mail is configured.
+  - Added read-only email configuration status indicator for Group Administrators on `modules/companies/settings.php`.
+

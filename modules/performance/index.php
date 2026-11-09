@@ -155,12 +155,12 @@ require_once __DIR__ . '/../../includes/header.php';
             <li class="breadcrumb-item active" aria-current="page">Performance</li>
         </ol>
     </nav>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
+    <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="page-header-title-block">
             <h1 class="page-header-title mb-0">Employee Performance Reviews</h1>
             <p class="text-muted small mb-0 mt-1">Confidential performance appraisals, structured competency scorecards, and developmental goals.</p>
         </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
+        <div class="page-actions d-flex gap-2 align-items-center flex-wrap">
             <?php if (user_can('report.view') && ($canViewAll || $canManageAll)): ?>
                 <a href="<?= e(url('modules/reports/performance_ratings.php')) ?>" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-bar-chart me-1"></i>Performance Reports
@@ -332,7 +332,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <th>Goals</th>
                     <th>Reviewer &amp; Date</th>
                     <th>Status</th>
-                    <th class="text-end pe-3">Actions</th>
+                    <th class="text-end pe-3 action-col">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -392,20 +392,35 @@ require_once __DIR__ . '/../../includes/header.php';
                             <td>
                                 <?= performance_status_badge((string)$rev['status']) ?>
                             </td>
-                            <td class="text-end text-nowrap pe-3">
-                                <a href="<?= e(url('modules/performance/view.php?id=' . (int)$rev['id'])) ?>" class="btn btn-sm btn-outline-secondary" title="View Review">
-                                    <i class="bi bi-eye"></i> View
-                                </a>
-                                <?php if ($canEditThis): ?>
-                                    <a href="<?= e(url('modules/performance/form.php?id=' . (int)$rev['id'])) ?>" class="btn btn-sm btn-outline-primary" title="Edit Review">
-                                        <i class="bi bi-pencil"></i> Edit
+                            <td class="text-end text-nowrap pe-3 action-col">
+                                <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                    <a href="<?= e(url('modules/performance/view.php?id=' . (int)$rev['id'])) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5" title="View review details">
+                                        <i class="bi bi-eye me-1"></i>View
                                     </a>
-                                <?php endif; ?>
-                                <?php if ($canAckThis): ?>
-                                    <a href="<?= e(url('modules/performance/view.php?id=' . (int)$rev['id'])) ?>" class="btn btn-sm btn-success" title="Acknowledge Review">
-                                        <i class="bi bi-check-lg"></i> Acknowledge
-                                    </a>
-                                <?php endif; ?>
+                                    <?= action_menu([
+                                        [
+                                            'type'       => 'link',
+                                            'label'      => 'Employee Profile',
+                                            'url'        => 'modules/employees/view.php?id=' . (int)$rev['employee_id'],
+                                            'icon'       => 'bi-person',
+                                            'permission' => user_can('employee.view'),
+                                        ],
+                                        [
+                                            'type'       => 'link',
+                                            'label'      => 'Edit Review',
+                                            'url'        => 'modules/performance/form.php?id=' . (int)$rev['id'],
+                                            'icon'       => 'bi-pencil',
+                                            'permission' => (bool)$canEditThis,
+                                        ],
+                                        [
+                                            'type'       => 'link',
+                                            'label'      => 'Acknowledge Review',
+                                            'url'        => 'modules/performance/view.php?id=' . (int)$rev['id'],
+                                            'icon'       => 'bi-check-circle',
+                                            'permission' => (bool)$canAckThis,
+                                        ],
+                                    ]) ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

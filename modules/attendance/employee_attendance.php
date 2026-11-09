@@ -160,20 +160,20 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 1100px;">
     <!-- Top Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Home</a></li>
                     <li class="breadcrumb-item active" aria-current="page">My Attendance</li>
                 </ol>
             </nav>
-            <div class="d-flex align-items-center gap-3">
-                <h1 class="h3 mb-0">My Attendance Log</h1>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <h1 class="page-header-title mb-0">My Attendance Log</h1>
                 <span class="badge bg-body-secondary text-body border"><?= e($employee['company_code']) ?> &bull; <?= e($employee['employee_code']) ?></span>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="page-actions">
             <a href="<?= e(url('modules/leave/my_leaves.php')) ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-person-walking me-1"></i> My Leave
             </a>
@@ -320,7 +320,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <td class="ps-3 fw-medium font-monospace">
                                         <?= e(format_date($row['att_date'])) ?>
                                         <?php if ($rowHoliday !== null): ?>
-                                            <span class="badge text-bg-warning text-body ms-1 small" title="Public Holiday: <?= e($rowHoliday) ?>">
+                                            <span class="badge text-bg-warning ms-1 small" title="Public Holiday: <?= e($rowHoliday) ?>">
                                                 <i class="bi bi-calendar-event me-1"></i><?= e($rowHoliday) ?>
                                             </span>
                                         <?php endif; ?>

@@ -286,7 +286,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
 
-            flash_set('success', 'Interview round ' . $roundNo . ' has been scheduled successfully.');
+            if (!empty($_POST['send_email'])) {
+                try {
+                    $mailRes = mail_send_candidate_template($pdo, $appId, 'interview_invite', [
+                        'interview_id' => $interviewId,
+                    ]);
+                    if (!empty($mailRes['ok'])) {
+                        flash_set('success', 'Interview round ' . $roundNo . ' has been scheduled and invitation email sent to candidate.');
+                    } else {
+                        $mailErrText = trim((string)($mailRes['error'] ?? 'Email delivery failed.'));
+                        flash_set('warning', 'Saved, but the email could not be sent: ' . $mailErrText);
+                    }
+                } catch (Throwable) {
+                    flash_set('warning', 'Saved, but the email could not be sent: Unexpected mail error.');
+                }
+            } else {
+                flash_set('success', 'Interview round ' . $roundNo . ' has been scheduled successfully.');
+            }
             redirect('modules/interviews/view.php?id=' . $interviewId);
         } catch (RuntimeException $e) {
             if ($pdo->inTransaction()) {
@@ -308,14 +324,24 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container-fluid py-4" style="max-width: 960px;">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-1">
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/index.php')) ?>">Interviews</a></li>
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['candidate_id'])) ?>"><?= e($application['first_name'] . ' ' . $application['last_name']) ?></a></li>
-            <li class="breadcrumb-item active" aria-current="page">Schedule Interview</li>
-        </ol>
-    </nav>
+    <!-- Page Header -->
+    <div class="page-header mb-3">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/index.php')) ?>">Interviews</a></li>
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['candidate_id'])) ?>"><?= e($application['first_name'] . ' ' . $application['last_name']) ?></a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Schedule Interview</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title h4 mb-0">Schedule Interview</h1>
+        </div>
+        <div class="page-actions">
+            <a href="<?= e(url('modules/candidates/view.php?id=' . (int)$application['candidate_id'])) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Candidate Profile
+            </a>
+        </div>
+    </div>
 
     <!-- Candidate & Vacancy Header Card -->
     <div class="card border-0 shadow-sm mb-4">
@@ -469,6 +495,37 @@ require_once __DIR__ . '/../../includes/header.php';
                         <label for="notes" class="form-label fw-semibold small text-secondary">Preparation Notes / Focus Areas</label>
                         <textarea class="form-control" id="notes" name="notes" rows="3"
                                   placeholder="Internal preparation notes for the interview panel..."><?= e($formData['notes']) ?></textarea>
+                    </div>
+
+                    <!-- Optional Email the Candidate Checkbox -->
+                    <div class="col-12">
+                        <?php
+                        $candEmailAvailable = trim((string)($application['candidate_email'] ?? '')) !== '';
+                        $defaultCheckEmail  = $_SERVER['REQUEST_METHOD'] === 'POST'
+                            ? !empty($_POST['send_email'])
+                            : (mail_is_configured() && $candEmailAvailable);
+                        ?>
+                        <div class="form-check p-3 ps-5 rounded bg-body-tertiary border">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="send_email"
+                                   id="scheduleSendEmailCheckbox"
+                                   value="1"
+                                   <?= $defaultCheckEmail ? 'checked' : '' ?>
+                                   <?= !$candEmailAvailable ? 'disabled' : '' ?>>
+                            <label class="form-check-label fw-semibold small" for="scheduleSendEmailCheckbox">
+                                <i class="bi bi-envelope-paper text-primary me-1"></i>Email the candidate
+                            </label>
+                            <div class="form-text small mt-1">
+                                <?php if (!$candEmailAvailable): ?>
+                                    Candidate has no email address on file.
+                                <?php elseif (mail_is_configured()): ?>
+                                    Automatically sends an interview invitation email to <strong><?= e((string)$application['candidate_email']) ?></strong> once saved.
+                                <?php else: ?>
+                                    Outgoing email is not configured in <code>config/config.php</code> (leave unchecked or use "Email candidate" on the interview page to open your mail app).
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

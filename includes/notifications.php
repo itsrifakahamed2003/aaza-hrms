@@ -424,7 +424,7 @@ function notification_type_meta(string $type): array
         ],
         default => [
             'icon'        => 'bi-bell',
-            'badge_class' => 'bg-light text-dark border',
+            'badge_class' => 'bg-body-secondary text-body border',
             'color'       => '#64748b',
             'label'       => 'General',
         ],

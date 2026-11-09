@@ -64,4 +64,14 @@ if (!defined('CURRENCY_CODE')) {
     define('CURRENCY_CODE', 'LKR');           // Default ISO currency code for financial displays
 }
 
+// Outgoing email configuration
+define('MAIL_DRIVER', 'none');          // 'smtp' | 'phpmail' | 'none'
+define('MAIL_HOST', 'smtp.gmail.com');
+define('MAIL_PORT', 587);
+define('MAIL_ENCRYPTION', 'tls');       // 'tls' | 'ssl'
+define('MAIL_USERNAME', '');
+define('MAIL_PASSWORD', '');            // Gmail App Password, never commit
+define('MAIL_FROM_EMAIL', '');
+define('MAIL_FROM_NAME', 'AaZa HRMS');
+
 date_default_timezone_set('Asia/Colombo');

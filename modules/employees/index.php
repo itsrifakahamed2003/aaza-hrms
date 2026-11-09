@@ -101,18 +101,21 @@ $types = employment_type_list();
 $pageTitle = 'Employees';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+<!-- Page Header -->
+<div class="page-header">
     <div>
-        <h1 class="h4 mb-0">Employees</h1>
-        <p class="text-muted mb-0 small">
+        <h1 class="page-header-title">Employees</h1>
+        <p class="page-header-desc">
             Manage employee directories, records, transfers, and documents across assigned companies.
         </p>
     </div>
-    <?php if (user_can('employee.create')): ?>
-        <a class="btn btn-primary" href="<?= e(url('modules/employees/form.php')) ?>">
-            <span class="me-1">&plus;</span> Add employee
-        </a>
-    <?php endif; ?>
+    <div class="page-actions page-header-actions">
+        <?php if (user_can('employee.create')): ?>
+            <a class="btn btn-primary btn-sm" href="<?= e(url('modules/employees/form.php')) ?>">
+                <span class="me-1">&plus;</span> Add employee
+            </a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- Search & Filters Card -->
@@ -121,8 +124,13 @@ require __DIR__ . '/../../includes/header.php';
         <form method="get" class="row g-2 align-items-end">
             <div class="col-12 col-md-4">
                 <label class="form-label small text-muted mb-1" for="searchQ">Search</label>
-                <input type="search" class="form-control form-control-sm" id="searchQ" name="q"
-                       placeholder="Name, employee code, email, phone" value="<?= e($q) ?>">
+                <div class="input-group input-group-sm">
+                    <input type="search" class="form-control form-control-sm border-end-0" id="searchQ" name="q"
+                           placeholder="Name, employee code, email, phone" value="<?= e($q) ?>">
+                    <button type="button" class="btn btn-outline-secondary border-start-0 btn-input-clear <?= $q !== '' ? '' : 'd-none' ?>" id="empSearchClearBtn" aria-label="Clear search" title="Clear search">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="col-6 col-md-3">
@@ -173,6 +181,15 @@ require __DIR__ . '/../../includes/header.php';
 
 <!-- Employees Table Card -->
 <div class="card shadow-sm">
+    <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h5 class="card-title mb-0 fs-6 fw-bold">Employees Directory</h5>
+            <small class="text-muted d-block mt-0.5">
+                <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any row to view full employee profile.
+            </small>
+        </div>
+        <span class="badge bg-body-secondary text-body border"><?= (int)$totalCount ?> employee<?= (int)$totalCount === 1 ? '' : 's' ?></span>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-active">
@@ -184,7 +201,7 @@ require __DIR__ . '/../../includes/header.php';
                 <th>Joined</th>
                 <th>Status</th>
                 <th>Basic Salary</th>
-                <th class="text-end">Actions</th>
+                <th class="text-end pe-3 action-col">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -194,8 +211,9 @@ require __DIR__ . '/../../includes/header.php';
                 $canEdit = user_can('employee.edit', $cid);
                 $canTransfer = user_can('employee.transfer', $cid);
                 $canViewSalary = user_can('salary.view', $cid);
+                $empViewUrl = url('modules/employees/view.php?id=' . (int)$emp['id']);
                 ?>
-                <tr>
+                <tr class="clickable-row employee-row" data-href="<?= e($empViewUrl) ?>" title="Double-click to view employee <?= e($emp['employee_code']) ?>">
                     <td>
                         <a class="fw-bold font-monospace text-decoration-none" href="<?= e(url('modules/employees/view.php?id=' . (int)$emp['id'])) ?>">
                             <?= e($emp['employee_code']) ?>
@@ -242,20 +260,28 @@ require __DIR__ . '/../../includes/header.php';
                             <span class="badge text-bg-secondary text-opacity-75" title="Requires salary.view permission">Restricted</span>
                         <?php endif; ?>
                     </td>
-                    <td class="text-end text-nowrap">
-                        <a class="btn btn-sm btn-outline-primary" href="<?= e(url('modules/employees/view.php?id=' . (int)$emp['id'])) ?>" title="View profile">
-                            View
-                        </a>
-                        <?php if ($canEdit): ?>
-                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('modules/employees/form.php?id=' . (int)$emp['id'])) ?>" title="Edit details">
-                                Edit
+                    <td class="text-end text-nowrap pe-3 action-col">
+                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                            <a class="btn btn-sm btn-outline-primary py-1 px-2.5" href="<?= e(url('modules/employees/view.php?id=' . (int)$emp['id'])) ?>" title="View profile">
+                                <i class="bi bi-eye me-1"></i>View
                             </a>
-                        <?php endif; ?>
-                        <?php if ($canTransfer && $emp['employment_status'] === 'active'): ?>
-                            <a class="btn btn-sm btn-outline-info" href="<?= e(url('modules/employees/transfer.php?id=' . (int)$emp['id'])) ?>" title="Transfer company">
-                                Transfer
-                            </a>
-                        <?php endif; ?>
+                            <?= action_menu([
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'Edit Details',
+                                    'url'        => 'modules/employees/form.php?id=' . (int)$emp['id'],
+                                    'icon'       => 'bi-pencil',
+                                    'permission' => (bool)$canEdit,
+                                ],
+                                [
+                                    'type'       => 'link',
+                                    'label'      => 'Transfer Company',
+                                    'url'        => 'modules/employees/transfer.php?id=' . (int)$emp['id'],
+                                    'icon'       => 'bi-arrow-left-right',
+                                    'permission' => ($canTransfer && $emp['employment_status'] === 'active'),
+                                ],
+                            ]) ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

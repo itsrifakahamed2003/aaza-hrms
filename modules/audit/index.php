@@ -277,22 +277,22 @@ require __DIR__ . '/../../includes/header.php';
 ?>
 
 <!-- Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div>
+<div class="page-header mb-4">
+    <div class="page-header-title-block">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-1">
                 <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Audit Logs</li>
             </ol>
         </nav>
-        <h2 class="h4 mb-0 fw-bold text-body font-sans">
+        <h1 class="page-header-title mb-0 font-sans">
             <i class="bi bi-shield-check text-primary me-2"></i>Activity Audit Trail
-        </h2>
-        <p class="text-muted small mb-0 font-sans">Immutable, append-only security and operational audit trail across company operations.</p>
+        </h1>
+        <p class="page-header-desc text-muted small mb-0 font-sans">Immutable, append-only security and operational audit trail across company operations.</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="page-header-actions page-actions">
         <?php if (user_can('audit.export')): ?>
-            <form method="post" action="<?= e(url('modules/audit/index.php')) ?>" class="d-inline">
+            <form method="post" action="<?= e(url('modules/audit/index.php')) ?>" class="d-inline m-0">
                 <?= csrf_field() ?>
                 <input type="hidden" name="export_csv" value="1">
                 <input type="hidden" name="company_id" value="<?= e((string)$rawCompany) ?>">
@@ -302,7 +302,7 @@ require __DIR__ . '/../../includes/header.php';
                 <input type="hidden" name="q" value="<?= e($qFilter) ?>">
                 <input type="hidden" name="start_date" value="<?= e($startDate) ?>">
                 <input type="hidden" name="end_date" value="<?= e($endDate) ?>">
-                <button type="submit" class="btn btn-outline-success font-sans">
+                <button type="submit" class="btn btn-outline-success btn-sm font-sans">
                     <i class="bi bi-file-earmark-excel me-1"></i>Export CSV
                 </button>
             </form>

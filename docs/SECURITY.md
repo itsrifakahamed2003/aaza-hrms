@@ -126,7 +126,7 @@ In `includes/bootstrap.php`:
 ### I. Installation & Setup Security
 - The 3-step installer (`public/setup.php`) is protected by CSRF verification on every step and per-IP rate limiting (40 req/min).
 - The installer automatically refuses execution if `storage/installed.lock` exists or if any user records are detected in the database.
-- Upon completion, `public/setup.php` attempts immediate self-deletion (`unlink(__FILE__)`). A prominent security warning banner appears on both the login screen and the Administrator System Health dashboard (`modules/system/health.php`) if the file remains on disk.
+- Upon completion, `public/setup.php` attempts immediate self-deletion (`unlink(__FILE__)`). A prominent security warning banner appears on both the login screen and administrative dashboards if the file remains on disk.
 
 ### J. Audit Trail Immutability & Masking
 - All key administrative and HR events are recorded in `activity_logs`.

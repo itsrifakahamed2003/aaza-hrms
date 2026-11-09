@@ -144,24 +144,24 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 <div class="container-fluid py-4" style="max-width: 1400px;">
     <!-- Top Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
+    <div class="page-header mb-4">
+        <div class="page-header-title-block">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Home</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Leave Management</li>
                 </ol>
             </nav>
-            <div class="d-flex align-items-center gap-3">
-                <h1 class="h3 mb-0">Leave Applications</h1>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <h1 class="page-header-title h3 mb-0">Leave Applications</h1>
                 <?php if ($pendingCount > 0): ?>
-                    <span class="badge text-bg-warning text-body px-3 py-2">
+                    <span class="badge text-bg-warning px-3 py-2">
                         <i class="bi bi-clock-history me-1"></i> <?= $pendingCount ?> Pending Review
                     </span>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="page-actions">
             <?php if (user_can('leave.manage_types')): ?>
                 <a href="<?= e(url('modules/leave/types.php')) ?>" class="btn btn-outline-secondary">
                     <i class="bi bi-tags me-1"></i> Policy &amp; Types
@@ -247,8 +247,13 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <!-- Requests Table -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">Applications (<?= number_format($totalRecords) ?>)</h5>
+        <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="card-title mb-0 fs-6 fw-bold">Leave Applications (<?= number_format($totalRecords) ?>)</h5>
+                <small class="text-muted d-block mt-0.5">
+                    <i class="bi bi-info-circle me-1"></i>Tip: Double-click or double-tap on any row to view full leave details.
+                </small>
+            </div>
             <small class="text-muted">Showing page <?= $page ?> of <?= max(1, (int)$pagination['pages']) ?></small>
         </div>
         <div class="card-body p-0">
@@ -263,7 +268,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th>Days</th>
                             <th>Status</th>
                             <th>Submitted</th>
-                            <th class="text-end pe-3">Actions</th>
+                            <th class="text-end pe-3 action-col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -279,10 +284,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <?php
                                 $canApproveThis = user_can('leave.approve', (int)$r['company_id']);
                                 $status = (string)$r['status'];
+                                $leaveViewUrl = url('modules/leave/view.php?id=' . (int)$r['id']);
                                 ?>
-                                <tr>
+                                <tr class="clickable-row leave-row" data-href="<?= e($leaveViewUrl) ?>" title="Double-click to view leave application #<?= (int)$r['id'] ?>">
                                     <td class="ps-3">
-                                        <a href="<?= e(url('modules/employees/view.php?id=' . (int)$r['employee_id'])) ?>" class="fw-semibold text-decoration-none text-body">
+                                        <a href="<?= e($leaveViewUrl) ?>" class="fw-semibold text-decoration-none text-body">
                                             <?= e($r['first_name'] . ' ' . $r['last_name']) ?>
                                         </a>
                                         <div class="text-muted small font-monospace"><?= e($r['employee_code']) ?></div>
@@ -326,11 +332,25 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <td>
                                         <div class="small text-muted"><?= e(format_date($r['requested_at'])) ?></div>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="<?= e(url('modules/leave/view.php?id=' . (int)$r['id'])) ?>" class="btn btn-outline-primary">
-                                                <?= ($status === 'pending' && $canApproveThis) ? '<i class="bi bi-check2-circle me-1"></i> Review' : 'View' ?>
+                                    <td class="text-end pe-3 action-col">
+                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                            <a href="<?= e($leaveViewUrl) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5" title="View leave application details">
+                                                <i class="bi bi-eye me-1"></i>View
                                             </a>
+                                            <?php if ($status === 'pending' && $canApproveThis): ?>
+                                                <a href="<?= e($leaveViewUrl) ?>" class="btn btn-sm btn-primary py-1 px-2 text-nowrap" title="Review and decide on request">
+                                                    <i class="bi bi-check2-circle me-1"></i>Review
+                                                </a>
+                                            <?php endif; ?>
+                                            <?= action_menu([
+                                                [
+                                                    'type'       => 'link',
+                                                    'label'      => 'Employee Profile',
+                                                    'url'        => 'modules/employees/view.php?id=' . (int)$r['employee_id'],
+                                                    'icon'       => 'bi-person',
+                                                    'permission' => user_can('employee.view'),
+                                                ],
+                                            ]) ?>
                                         </div>
                                     </td>
                                 </tr>

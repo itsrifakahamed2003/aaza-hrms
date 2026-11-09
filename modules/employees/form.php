@@ -116,14 +116,55 @@ if ($editing) {
     }
 }
 
-// Fetch reporting managers for allowed companies
+// Helper to find all subordinate employee IDs recursively to prevent circular reporting loops
+if (!function_exists('get_employee_subordinate_ids')) {
+    function get_employee_subordinate_ids(PDO $pdo, int $employeeId): array
+    {
+        if ($employeeId <= 0) {
+            return [];
+        }
+        $subordinateIds = [];
+        $queue = [$employeeId];
+        $visited = [$employeeId => true];
+
+        $st = $pdo->prepare('SELECT id FROM employees WHERE reporting_manager_id = ?');
+        while (!empty($queue)) {
+            $currentId = array_shift($queue);
+            $st->execute([$currentId]);
+            $children = $st->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($children as $childId) {
+                $cid = (int)$childId;
+                if (!isset($visited[$cid])) {
+                    $visited[$cid] = true;
+                    $subordinateIds[] = $cid;
+                    $queue[] = $cid;
+                }
+            }
+        }
+        return $subordinateIds;
+    }
+}
+
+// Fetch reporting managers for allowed companies:
+// Exclude the employee being edited AND their own subordinates (cycle/loop prevention)
+$excludedManagerIds = $editing ? array_merge([$id], get_employee_subordinate_ids($pdo, $id)) : [];
+$excludeClause = '';
+if (!empty($excludedManagerIds)) {
+    $exPh = implode(',', array_fill(0, count($excludedManagerIds), '?'));
+    $excludeClause = " AND e.id NOT IN ($exPh)";
+}
+
 $st = $pdo->prepare(
-    "SELECT id, company_id, employee_code, first_name, last_name
-       FROM employees
-      WHERE company_id IN ($ph) AND employment_status = 'active' " . ($editing ? "AND id != $id " : "") . "
-      ORDER BY first_name, last_name"
+    "SELECT e.id, e.company_id, e.employee_code, e.first_name, e.last_name, d.title AS designation_title
+       FROM employees e
+  LEFT JOIN designations d ON d.id = e.designation_id
+      WHERE e.company_id IN ($ph)
+        AND e.employment_status = 'active'"
+      . $excludeClause . "
+      ORDER BY e.first_name, e.last_name"
 );
-$st->execute($allowedCompanyIds);
+$mgrParams = array_merge($allowedCompanyIds, $excludedManagerIds);
+$st->execute($mgrParams);
 $allManagers = $st->fetchAll();
 
 // Fetch active users for allowed companies who are not linked to another employee
@@ -160,7 +201,16 @@ if ($editing && !empty($employee['user_id'])) {
     }
 }
 
+// Detect initial document type
+$existingDoc = (string)($employee['nic_passport'] ?? '');
+if ($existingDoc !== '' && !preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $existingDoc)) {
+    $docType = 'passport';
+} else {
+    $docType = 'nic';
+}
+
 $errors = [];
+$fieldErrors = [];
 
 // Form submission handler
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -170,6 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$editing) {
         if (!in_array($companyId, $allowedCompanyIds, true)) {
             $errors[] = 'Please select a valid company.';
+            $fieldErrors['company_id'] = 'Please select a valid company.';
         }
         require_company_access($companyId, 'employee.create');
     }
@@ -177,7 +228,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $firstName      = trim((string)($_POST['first_name'] ?? ''));
     $lastName       = trim((string)($_POST['last_name'] ?? ''));
     $email          = trim((string)($_POST['email'] ?? ''));
-    $phone          = trim((string)($_POST['phone'] ?? ''));
+    $phoneRaw       = trim((string)($_POST['phone'] ?? ''));
+    $docType        = (string)($_POST['doc_type'] ?? 'nic');
     $nicPassport    = trim((string)($_POST['nic_passport'] ?? ''));
     $dob            = trim((string)($_POST['dob'] ?? ''));
     $gender         = trim((string)($_POST['gender'] ?? ''));
@@ -188,105 +240,187 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $joiningDate    = trim((string)($_POST['joining_date'] ?? ''));
     $employmentType = trim((string)($_POST['employment_type'] ?? 'full_time'));
 
+    // Normalize phone: strip spaces/hyphens/parentheses, normalize +94 or 94 to 0
+    $phone = preg_replace('/[\s\-()]+/', '', $phoneRaw);
+    if (str_starts_with($phone, '+94')) {
+        $phone = '0' . substr($phone, 3);
+    } elseif (str_starts_with($phone, '94') && strlen($phone) === 11) {
+        $phone = '0' . substr($phone, 2);
+    }
+
     // Validation
     if ($firstName === '' || mb_strlen($firstName) > 80) {
+        $fieldErrors['first_name'] = 'First name is required (maximum 80 characters).';
         $errors[] = 'First name is required (maximum 80 characters).';
     }
     if ($lastName === '' || mb_strlen($lastName) > 80) {
+        $fieldErrors['last_name'] = 'Last name is required (maximum 80 characters).';
         $errors[] = 'Last name is required (maximum 80 characters).';
     }
-    if ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150)) {
-        $errors[] = 'Enter a valid email address (maximum 150 characters) or leave it empty.';
-    }
-    if ($phone !== '' && !preg_match('/^[0-9+()\s-]{0,30}$/', $phone)) {
-        $errors[] = 'Phone number may contain only digits, spaces, +, -, and () (max 30 characters).';
-    }
-    if (mb_strlen($nicPassport) > 30) {
-        $errors[] = 'NIC / Passport must be at most 30 characters.';
-    }
-    if ($dob !== '') {
-        $d = DateTime::createFromFormat('Y-m-d', $dob);
-        if (!$d || $d->format('Y-m-d') !== $dob) {
-            $errors[] = 'Date of birth must be a valid date (YYYY-MM-DD).';
-        }
-    }
-    if ($gender !== '' && !in_array($gender, ['male', 'female'], true)) {
-        $errors[] = 'Please select a valid gender option.';
-    }
-    if ($joiningDate === '') {
-        $errors[] = 'Joining date is required.';
-    } else {
-        $jd = DateTime::createFromFormat('Y-m-d', $joiningDate);
-        if (!$jd || $jd->format('Y-m-d') !== $joiningDate) {
-            $errors[] = 'Joining date must be a valid date (YYYY-MM-DD).';
-        }
-    }
-    if (!array_key_exists($employmentType, employment_type_list())) {
-        $errors[] = 'Please select a valid employment type.';
-    }
 
-    // Duplicate checks for email and NIC/Passport within the same company
-    if ($email !== '') {
+    // Work email: REQUIRED, valid, unique within the company
+    if ($email === '') {
+        $fieldErrors['email'] = 'Work email is required.';
+        $errors[] = 'Work email is required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150) {
+        $fieldErrors['email'] = 'Enter a valid work email address (maximum 150 characters).';
+        $errors[] = 'Enter a valid work email address (maximum 150 characters).';
+    } else {
         $stDup = $pdo->prepare(
-            'SELECT id, employee_code, first_name, last_name FROM employees WHERE company_id = ? AND email = ?'
+            'SELECT id, employee_code, first_name, last_name FROM employees WHERE company_id = ? AND LOWER(email) = LOWER(?)'
             . ($editing ? ' AND id != ?' : '') . ' LIMIT 1'
         );
         $dupParams = $editing ? [$companyId, $email, $id] : [$companyId, $email];
         $stDup->execute($dupParams);
         if ($dup = $stDup->fetch()) {
-            $errors[] = "An employee with email '{$email}' already exists in this company ({$dup['first_name']} {$dup['last_name']} - {$dup['employee_code']}).";
+            $msg = "An employee with email '{$email}' already exists in this company ({$dup['first_name']} {$dup['last_name']} - {$dup['employee_code']}).";
+            $fieldErrors['email'] = $msg;
+            $errors[] = $msg;
         }
     }
 
-    if ($nicPassport !== '') {
+    // Phone: REQUIRED, exactly 10 digits Sri Lankan style ^0[0-9]{9}$
+    if ($phone === '') {
+        $fieldErrors['phone'] = 'Phone number is required.';
+        $errors[] = 'Phone number is required.';
+    } elseif (!preg_match('/^0[0-9]{9}$/', $phone)) {
+        $fieldErrors['phone'] = 'Phone number must be exactly 10 digits starting with 0 (e.g. 0771234567 or +94771234567).';
+        $errors[] = 'Phone number must be exactly 10 digits starting with 0 (e.g. 0771234567 or +94771234567).';
+    }
+
+    // NIC / Passport
+    if ($docType === 'passport') {
+        if ($nicPassport === '') {
+            $fieldErrors['nic_passport'] = 'Passport number is required.';
+            $errors[] = 'Passport number is required.';
+        } elseif (!preg_match('/^[A-Za-z0-9]{6,20}$/', $nicPassport)) {
+            $fieldErrors['nic_passport'] = 'Passport number must be 6 to 20 alphanumeric characters.';
+            $errors[] = 'Passport number must be 6 to 20 alphanumeric characters.';
+        } else {
+            $nicPassport = strtoupper($nicPassport);
+        }
+    } else {
+        $docType = 'nic';
+        if ($nicPassport === '') {
+            $fieldErrors['nic_passport'] = 'NIC number is required.';
+            $errors[] = 'NIC number is required.';
+        } elseif (!preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $nicPassport)) {
+            $fieldErrors['nic_passport'] = 'Enter a valid Sri Lankan NIC (old 9 digits with V/X, or new 12 digits).';
+            $errors[] = 'Enter a valid Sri Lankan NIC (old 9 digits with V/X, or new 12 digits).';
+        } else {
+            $nicPassport = strtoupper($nicPassport);
+        }
+    }
+
+    // Duplicate checks for NIC / Passport within the same company
+    if ($nicPassport !== '' && empty($fieldErrors['nic_passport'])) {
         $stDup = $pdo->prepare(
-            'SELECT id, employee_code, first_name, last_name FROM employees WHERE company_id = ? AND nic_passport = ?'
+            'SELECT id, employee_code, first_name, last_name FROM employees WHERE company_id = ? AND UPPER(nic_passport) = UPPER(?)'
             . ($editing ? ' AND id != ?' : '') . ' LIMIT 1'
         );
         $dupParams = $editing ? [$companyId, $nicPassport, $id] : [$companyId, $nicPassport];
         $stDup->execute($dupParams);
         if ($dup = $stDup->fetch()) {
-            $errors[] = "An employee with NIC/Passport '{$nicPassport}' already exists in this company ({$dup['first_name']} {$dup['last_name']} - {$dup['employee_code']}).";
+            $label = $docType === 'passport' ? 'Passport' : 'NIC';
+            $msg = "An employee with {$label} '{$nicPassport}' already exists in this company ({$dup['first_name']} {$dup['last_name']} - {$dup['employee_code']}).";
+            $fieldErrors['nic_passport'] = $msg;
+            $errors[] = $msg;
         }
     }
 
-    // SERVER-SIDE VERIFICATION: Department and Designation must belong to the SAME company and be active
-    if ($departmentId > 0) {
-        $isCurrentDept = ($editing && $departmentId === (int)$employee['department_id']);
+    // Date of Birth: REQUIRED, valid date, not in the future, at least 16 years old
+    if ($dob === '') {
+        $fieldErrors['dob'] = 'Date of birth is required.';
+        $errors[] = 'Date of birth is required.';
+    } else {
+        $d = DateTimeImmutable::createFromFormat('Y-m-d', $dob);
+        $today = new DateTimeImmutable('today');
+        if (!$d || $d->format('Y-m-d') !== $dob) {
+            $fieldErrors['dob'] = 'Date of birth must be a valid date (YYYY-MM-DD).';
+            $errors[] = 'Date of birth must be a valid date (YYYY-MM-DD).';
+        } elseif ($d > $today) {
+            $fieldErrors['dob'] = 'Date of birth cannot be in the future.';
+            $errors[] = 'Date of birth cannot be in the future.';
+        } else {
+            $minAgeDate = $today->modify('-16 years');
+            if ($d > $minAgeDate) {
+                $fieldErrors['dob'] = 'Employee must be at least 16 years old.';
+                $errors[] = 'Employee must be at least 16 years old.';
+            }
+        }
+    }
+
+    // Gender: REQUIRED
+    if ($gender === '' || !in_array($gender, ['male', 'female'], true)) {
+        $fieldErrors['gender'] = 'Gender is required. Please select male or female.';
+        $errors[] = 'Gender is required. Please select male or female.';
+    }
+
+    // Joining Date: REQUIRED, valid date
+    if ($joiningDate === '') {
+        $fieldErrors['joining_date'] = 'Joining date is required.';
+        $errors[] = 'Joining date is required.';
+    } else {
+        $jd = DateTimeImmutable::createFromFormat('Y-m-d', $joiningDate);
+        if (!$jd || $jd->format('Y-m-d') !== $joiningDate) {
+            $fieldErrors['joining_date'] = 'Joining date must be a valid date (YYYY-MM-DD).';
+            $errors[] = 'Joining date must be a valid date (YYYY-MM-DD).';
+        }
+    }
+
+    // Employment Type: REQUIRED
+    if ($employmentType === '' || !array_key_exists($employmentType, employment_type_list())) {
+        $fieldErrors['employment_type'] = 'Please select a valid employment type.';
+        $errors[] = 'Please select a valid employment type.';
+    }
+
+    // SERVER-SIDE VERIFICATION: Department and Designation are REQUIRED, must belong to selected company and be active
+    if ($departmentId <= 0) {
+        $fieldErrors['department_id'] = 'Department is required. Please select a department.';
+        $errors[] = 'Department is required. Please select a department.';
+    } else {
+        $isCurrentDept = ($editing && $departmentId === (int)($employee['department_id'] ?? 0));
         $st = $pdo->prepare(
             'SELECT id FROM departments WHERE id = ? AND company_id = ?' . ($isCurrentDept ? '' : ' AND is_active = 1') . ' LIMIT 1'
         );
         $st->execute([$departmentId, $companyId]);
         if (!$st->fetch()) {
+            $fieldErrors['department_id'] = 'The selected department is invalid or does not belong to the selected company.';
             $errors[] = 'The selected department is invalid or does not belong to the selected company.';
         }
-    } else {
-        $departmentId = null;
     }
 
-    if ($designationId > 0) {
-        $isCurrentDesig = ($editing && $designationId === (int)$employee['designation_id']);
+    if ($designationId <= 0) {
+        $fieldErrors['designation_id'] = 'Designation is required. Please select a designation.';
+        $errors[] = 'Designation is required. Please select a designation.';
+    } else {
+        $isCurrentDesig = ($editing && $designationId === (int)($employee['designation_id'] ?? 0));
         $st = $pdo->prepare(
             'SELECT id FROM designations WHERE id = ? AND company_id = ?' . ($isCurrentDesig ? '' : ' AND is_active = 1') . ' LIMIT 1'
         );
         $st->execute([$designationId, $companyId]);
         if (!$st->fetch()) {
+            $fieldErrors['designation_id'] = 'The selected designation is invalid or does not belong to the selected company.';
             $errors[] = 'The selected designation is invalid or does not belong to the selected company.';
         }
-    } else {
-        $designationId = null;
     }
 
-    // Server-side verification: Reporting manager must belong to same company and be active
+    // Server-side verification: Reporting manager must belong to same company, be active, not self, and not subordinate
     if ($managerId > 0) {
+        $subordinateIds = $editing ? get_employee_subordinate_ids($pdo, $id) : [];
         if ($editing && $managerId === $id) {
+            $fieldErrors['reporting_manager_id'] = 'An employee cannot report to themselves.';
             $errors[] = 'An employee cannot report to themselves.';
+        } elseif ($editing && in_array($managerId, $subordinateIds, true)) {
+            $fieldErrors['reporting_manager_id'] = 'An employee cannot report to one of their subordinates (avoids hierarchy loop).';
+            $errors[] = 'An employee cannot report to one of their subordinates (avoids hierarchy loop).';
         } else {
             $st = $pdo->prepare(
                 'SELECT id FROM employees WHERE id = ? AND company_id = ? AND employment_status = "active" LIMIT 1'
             );
             $st->execute([$managerId, $companyId]);
             if (!$st->fetch()) {
+                $fieldErrors['reporting_manager_id'] = 'Selected reporting manager is invalid or does not belong to the same company.';
                 $errors[] = 'Selected reporting manager is invalid or does not belong to the same company.';
             }
         }
@@ -301,6 +435,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $salaryInput = trim((string)($_POST['basic_salary'] ?? ''));
         if ($salaryInput !== '') {
             if (!is_numeric($salaryInput) || (float)$salaryInput < 0 || (float)$salaryInput > 9999999999.99) {
+                $fieldErrors['basic_salary'] = 'Basic salary must be a valid non-negative number up to 9,999,999,999.99.';
                 $errors[] = 'Basic salary must be a valid non-negative number up to 9,999,999,999.99.';
             } else {
                 $basicSalary = round((float)$salaryInput, 2);
@@ -323,11 +458,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$canUpdateEmployee) {
-            $errors[] = 'You do not have permission to link login accounts (requires employee.update).';
-            flash_set('danger', 'You do not have permission to link login accounts (requires employee.update).');
+            $msg = 'You do not have permission to link login accounts (requires employee.update).';
+            $fieldErrors['user_id'] = $msg;
+            $errors[] = $msg;
+            flash_set('danger', $msg);
         } elseif ($targetUserId !== null) {
             $linkError = validate_employee_user_link($pdo, $targetUserId, $companyId, $editing ? $id : null);
             if ($linkError !== null) {
+                $fieldErrors['user_id'] = $linkError;
                 $errors[] = $linkError;
                 flash_set('danger', $linkError);
             }
@@ -553,21 +691,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = $editing ? ('Edit ' . $employee['first_name'] . ' ' . $employee['last_name']) : 'Add employee';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h4 mb-0"><?= e($pageTitle) ?></h1>
+<div class="page-header mb-3">
+    <div class="page-header-title-block">
+        <h1 class="page-header-title h4 mb-0"><?= e($pageTitle) ?></h1>
         <p class="text-muted mb-0 small">
-            <?= $editing ? 'Update personal, organizational, and employment details.' : 'Register a new employee. Employee code is auto-generated per company.' ?>
+            <?= $editing ? 'Update personal, organizational, and employment details. <span class="text-muted ms-1">Code: ' . e($employee['employee_code']) . '</span>' : 'Register a new employee. Employee code is auto-generated per company.' ?>
         </p>
     </div>
-    <a class="btn btn-outline-secondary" href="<?= e($editing ? url('modules/employees/view.php?id=' . $id) : url('modules/employees/index.php')) ?>">
-        &larr; Back
-    </a>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" href="<?= e($editing ? url('modules/employees/view.php?id=' . $id) : url('modules/employees/index.php')) ?>">
+            &larr; Back
+        </a>
+    </div>
 </div>
 
 <?php if ($errors): ?>
     <div class="alert alert-danger shadow-sm">
-        <div class="fw-semibold mb-1">Please correct the following errors:</div>
+        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Please fix the highlighted fields:</div>
         <ul class="mb-0 ps-3">
             <?php foreach ($errors as $err): ?>
                 <li><?= e($err) ?></li>
@@ -576,14 +716,14 @@ require __DIR__ . '/../../includes/header.php';
     </div>
 <?php endif; ?>
 
-<form method="post" novalidate id="employeeForm" autocomplete="off">
+<form method="post" id="employeeForm" autocomplete="off">
     <?= csrf_field() ?>
 
     <div class="row g-3">
         <!-- Organizational Context -->
         <div class="col-12 col-lg-4">
             <div class="card shadow-sm mb-3">
-                <div class="card-header bg-body fw-semibold">Company &amp; Code</div>
+                <div class="card-header bg-body fw-semibold">Company &amp; Employment</div>
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label" for="companyId">Company <span class="text-danger">*</span></label>
@@ -601,39 +741,40 @@ require __DIR__ . '/../../includes/header.php';
                             <input class="form-control" type="text" value="<?= e($compName) ?>" readonly disabled>
                             <div class="form-text">Company transfer must be processed via the Transfer workflow.</div>
                         <?php else: ?>
-                            <select class="form-select" id="companyId" name="company_id" required onchange="onCompanyChange()">
+                            <select class="form-select <?= isset($fieldErrors['company_id']) ? 'is-invalid' : '' ?>" id="companyId" name="company_id" required onchange="onCompanyChange()">
                                 <?php foreach ($companies as $c): ?>
                                     <option value="<?= (int)$c['id'] ?>"<?= (int)$employee['company_id'] === (int)$c['id'] ? ' selected' : '' ?>>
                                         <?= e($c['code']) ?> - <?= e($c['name']) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php if (isset($fieldErrors['company_id'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['company_id']) ?></div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="employeeCode">Employee Code</label>
-                        <input class="form-control font-monospace" id="employeeCode" type="text"
-                               value="<?= e($editing ? $employee['employee_code'] : '[Auto-generated per company on submit, e.g. AZT-0001]') ?>"
-                               readonly disabled>
-                        <div class="form-text">Assigned automatically using company prefix and numeric sequence.</div>
-                    </div>
-
-                    <div class="mb-3">
                         <label class="form-label" for="joiningDate">Joining Date <span class="text-danger">*</span></label>
-                        <input class="form-control" type="date" id="joiningDate" name="joining_date" required
+                        <input class="form-control <?= isset($fieldErrors['joining_date']) ? 'is-invalid' : '' ?>" type="date" id="joiningDate" name="joining_date" required
                                value="<?= e($employee['joining_date'] ?? date('Y-m-d')) ?>">
+                        <?php if (isset($fieldErrors['joining_date'])): ?>
+                            <div class="invalid-feedback"><?= e($fieldErrors['joining_date']) ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label" for="employmentType">Employment Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="employmentType" name="employment_type" required>
+                        <select class="form-select <?= isset($fieldErrors['employment_type']) ? 'is-invalid' : '' ?>" id="employmentType" name="employment_type" required>
                             <?php foreach (employment_type_list() as $val => $lbl): ?>
                                 <option value="<?= e($val) ?>"<?= ($employee['employment_type'] ?? 'full_time') === $val ? ' selected' : '' ?>>
                                     <?= e($lbl) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (isset($fieldErrors['employment_type'])): ?>
+                            <div class="invalid-feedback"><?= e($fieldErrors['employment_type']) ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <?php
@@ -668,36 +809,48 @@ require __DIR__ . '/../../includes/header.php';
                 <div class="card-header bg-body fw-semibold">Department &amp; Designation</div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label" for="departmentId">Department</label>
-                            <select class="form-select" id="departmentId" name="department_id">
-                                <option value="0">-- Select Department --</option>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="departmentId">Department <span class="text-danger">*</span></label>
+                            <select class="form-select <?= isset($fieldErrors['department_id']) ? 'is-invalid' : '' ?>" id="departmentId" name="department_id" required>
+                                <option value="">-- Select Department --</option>
                             </select>
-                            <div class="form-text">Only shows active departments of the selected company.</div>
+                            <?php if (isset($fieldErrors['department_id'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['department_id']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Required. Only shows active departments of the selected company.</div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label" for="designationId">Designation</label>
-                            <select class="form-select" id="designationId" name="designation_id">
-                                <option value="0">-- Select Designation --</option>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="designationId">Designation <span class="text-danger">*</span></label>
+                            <select class="form-select <?= isset($fieldErrors['designation_id']) ? 'is-invalid' : '' ?>" id="designationId" name="designation_id" required>
+                                <option value="">-- Select Designation --</option>
                             </select>
-                            <div class="form-text">Only shows active designations of the selected company.</div>
+                            <?php if (isset($fieldErrors['designation_id'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['designation_id']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Required. Only shows active designations of the selected company.</div>
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-12 col-md-6">
                             <label class="form-label" for="reportingManagerId">Reporting Manager</label>
-                            <select class="form-select" id="reportingManagerId" name="reporting_manager_id">
+                            <select class="form-select <?= isset($fieldErrors['reporting_manager_id']) ? 'is-invalid' : '' ?>" id="reportingManagerId" name="reporting_manager_id">
                                 <option value="0">-- No Reporting Manager --</option>
                             </select>
-                            <div class="form-text">Active staff members from the same company.</div>
+                            <?php if (isset($fieldErrors['reporting_manager_id'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['reporting_manager_id']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Optional. Active staff from same company (subordinates excluded to avoid loops).</div>
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-12 col-md-6">
                             <label class="form-label" for="userId">Login account</label>
-                            <select class="form-select" id="userId" name="user_id">
+                            <select class="form-select <?= isset($fieldErrors['user_id']) ? 'is-invalid' : '' ?>" id="userId" name="user_id">
                                 <option value="0">-- None (Unlinked) --</option>
                             </select>
-                            <div class="form-text">Optional. Lists active users assigned to this company who are not already linked to another employee.</div>
+                            <?php if (isset($fieldErrors['user_id'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['user_id']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Optional. Lists active users assigned to this company not linked elsewhere.</div>
                         </div>
                     </div>
                 </div>
@@ -708,49 +861,97 @@ require __DIR__ . '/../../includes/header.php';
                 <div class="card-header bg-body fw-semibold">Personal Information</div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <label class="form-label" for="firstName">First Name <span class="text-danger">*</span></label>
-                            <input class="form-control" type="text" id="firstName" name="first_name" maxlength="80" required
+                            <input class="form-control <?= isset($fieldErrors['first_name']) ? 'is-invalid' : '' ?>"
+                                   type="text" id="firstName" name="first_name" maxlength="80" required
                                    value="<?= e($employee['first_name']) ?>">
+                            <?php if (isset($fieldErrors['first_name'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['first_name']) ?></div>
+                            <?php endif; ?>
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <label class="form-label" for="lastName">Last Name <span class="text-danger">*</span></label>
-                            <input class="form-control" type="text" id="lastName" name="last_name" maxlength="80" required
+                            <input class="form-control <?= isset($fieldErrors['last_name']) ? 'is-invalid' : '' ?>"
+                                   type="text" id="lastName" name="last_name" maxlength="80" required
                                    value="<?= e($employee['last_name']) ?>">
+                            <?php if (isset($fieldErrors['last_name'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['last_name']) ?></div>
+                            <?php endif; ?>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label" for="email">Email</label>
-                            <input class="form-control" type="email" id="email" name="email" maxlength="150"
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="email">Work Email <span class="text-danger">*</span></label>
+                            <input class="form-control <?= isset($fieldErrors['email']) ? 'is-invalid' : '' ?>"
+                                   type="email" id="email" name="email" maxlength="150" required
+                                   placeholder="name@company.com"
                                    value="<?= e($employee['email'] ?? '') ?>">
+                            <?php if (isset($fieldErrors['email'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['email']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Required. Must be unique within the selected company.</div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label" for="phone">Phone</label>
-                            <input class="form-control" type="text" id="phone" name="phone" maxlength="30"
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="phone">Phone <span class="text-danger">*</span></label>
+                            <input class="form-control font-monospace <?= isset($fieldErrors['phone']) ? 'is-invalid' : '' ?>"
+                                   type="tel" id="phone" name="phone" inputmode="numeric" maxlength="10" required
+                                   pattern="^0[0-9]{9}$" placeholder="0771234567"
                                    value="<?= e($employee['phone'] ?? '') ?>">
+                            <?php if (isset($fieldErrors['phone'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['phone']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Required. Exactly 10 digits Sri Lankan style (e.g. 0771234567 or +94771234567).</div>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label" for="nicPassport">NIC / Passport No.</label>
-                            <input class="form-control" type="text" id="nicPassport" name="nic_passport" maxlength="30"
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label" for="docType">Document Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="docType" name="doc_type" onchange="onDocTypeChange()">
+                                <option value="nic"<?= $docType === 'nic' ? ' selected' : '' ?>>NIC</option>
+                                <option value="passport"<?= $docType === 'passport' ? ' selected' : '' ?>>Passport</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label" id="docNumberLabel" for="nicPassport">
+                                <?= $docType === 'passport' ? 'Passport No.' : 'NIC Number' ?> <span class="text-danger">*</span>
+                            </label>
+                            <input class="form-control font-monospace <?= isset($fieldErrors['nic_passport']) ? 'is-invalid' : '' ?>"
+                                   type="text" id="nicPassport" name="nic_passport" required
+                                   maxlength="<?= $docType === 'passport' ? '20' : '12' ?>"
+                                   placeholder="<?= $docType === 'passport' ? 'e.g. N1234567' : 'e.g. 199512345678 or 951234567V' ?>"
                                    value="<?= e($employee['nic_passport'] ?? '') ?>">
+                            <?php if (isset($fieldErrors['nic_passport'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['nic_passport']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text" id="docNumberHelp">
+                                <?= $docType === 'passport' ? '6-20 alphanumeric characters.' : '9 digits + V/X or 12 digits.' ?>
+                            </div>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label" for="dob">Date of Birth</label>
-                            <input class="form-control" type="date" id="dob" name="dob"
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label" for="dob">Date of Birth <span class="text-danger">*</span></label>
+                            <input class="form-control <?= isset($fieldErrors['dob']) ? 'is-invalid' : '' ?>"
+                                   type="date" id="dob" name="dob" required
+                                   max="<?= date('Y-m-d', strtotime('-16 years')) ?>"
                                    value="<?= e($employee['dob'] ?? '') ?>">
+                            <?php if (isset($fieldErrors['dob'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['dob']) ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">Required. Minimum 16 years old.</div>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label" for="gender">Gender</label>
-                            <select class="form-select" id="gender" name="gender">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label" for="gender">Gender <span class="text-danger">*</span></label>
+                            <select class="form-select <?= isset($fieldErrors['gender']) ? 'is-invalid' : '' ?>" id="gender" name="gender" required>
                                 <option value="">-- Select Gender --</option>
                                 <option value="male"<?= ($employee['gender'] ?? '') === 'male' ? ' selected' : '' ?>>Male</option>
                                 <option value="female"<?= ($employee['gender'] ?? '') === 'female' ? ' selected' : '' ?>>Female</option>
                             </select>
+                            <?php if (isset($fieldErrors['gender'])): ?>
+                                <div class="invalid-feedback"><?= e($fieldErrors['gender']) ?></div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="col-12">
@@ -761,12 +962,12 @@ require __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2">
+            <div class="d-flex justify-content-end gap-2 mb-4">
                 <a class="btn btn-outline-secondary" href="<?= e($editing ? url('modules/employees/view.php?id=' . $id) : url('modules/employees/index.php')) ?>">
                     Cancel
                 </a>
-                <button type="submit" class="btn btn-primary px-4">
-                    <?= $editing ? 'Save Changes' : 'Create Employee' ?>
+                <button type="submit" class="btn btn-primary px-4" id="saveEmployeeBtn">
+                    <i class="bi bi-check-lg me-1"></i> <?= $editing ? 'Save Changes' : 'Save Employee' ?>
                 </button>
             </div>
         </div>
@@ -793,12 +994,49 @@ function getSelectedCompanyId() {
     return parseInt(compEl.value, 10) || 0;
 }
 
+function onDocTypeChange() {
+    const docTypeEl = document.getElementById('docType');
+    const inputEl = document.getElementById('nicPassport');
+    const labelEl = document.getElementById('docNumberLabel');
+    const helpEl = document.getElementById('docNumberHelp');
+    if (!docTypeEl || !inputEl || !labelEl) return;
+
+    if (docTypeEl.value === 'passport') {
+        labelEl.innerHTML = 'Passport No. <span class="text-danger">*</span>';
+        inputEl.placeholder = 'e.g. N1234567';
+        inputEl.maxLength = 20;
+        inputEl.pattern = '^[A-Za-z0-9]{6,20}$';
+        if (helpEl) helpEl.textContent = '6-20 alphanumeric characters.';
+    } else {
+        labelEl.innerHTML = 'NIC Number <span class="text-danger">*</span>';
+        inputEl.placeholder = 'e.g. 199512345678 or 951234567V';
+        inputEl.maxLength = 12;
+        inputEl.pattern = '^([0-9]{9}[vVxX]|[0-9]{12})$';
+        if (helpEl) helpEl.textContent = '9 digits + V/X or 12 digits.';
+    }
+}
+
+// Auto-clean phone input when typed or pasted (convert +94 to 0, strip non-digits, max 10 digits)
+const phoneInput = document.getElementById('phone');
+if (phoneInput) {
+    phoneInput.addEventListener('input', function() {
+        let val = this.value.trim();
+        if (val.startsWith('+94')) {
+            val = '0' + val.substring(3);
+        } else if (val.startsWith('94') && val.length > 10) {
+            val = '0' + val.substring(2);
+        }
+        val = val.replace(/[^\d]/g, '').slice(0, 10);
+        this.value = val;
+    });
+}
+
 function onCompanyChange() {
     const cid = getSelectedCompanyId();
 
     // 1. Departments
     const deptSelect = document.getElementById('departmentId');
-    deptSelect.innerHTML = '<option value="0">-- Select Department --</option>';
+    deptSelect.innerHTML = '<option value="">-- Select Department --</option>';
     allDepts.filter(d => parseInt(d.company_id, 10) === cid).forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.id;
@@ -811,7 +1049,7 @@ function onCompanyChange() {
 
     // 2. Designations
     const desigSelect = document.getElementById('designationId');
-    desigSelect.innerHTML = '<option value="0">-- Select Designation --</option>';
+    desigSelect.innerHTML = '<option value="">-- Select Designation --</option>';
     allDesigs.filter(d => parseInt(d.company_id, 10) === cid).forEach(d => {
         const opt = document.createElement('option');
         opt.value = d.id;
@@ -822,24 +1060,29 @@ function onCompanyChange() {
         desigSelect.appendChild(opt);
     });
 
-    // 3. Reporting Managers
+    // 3. Reporting Managers: formatted as "Name (CODE) - Designation"
     const mgrSelect = document.getElementById('reportingManagerId');
     mgrSelect.innerHTML = '<option value="0">-- No Reporting Manager --</option>';
     allManagers.filter(m => parseInt(m.company_id, 10) === cid).forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
-        opt.textContent = m.employee_code + ' - ' + m.first_name + ' ' + m.last_name;
+        const desig = m.designation_title ? ' - ' + m.designation_title : '';
+        opt.textContent = m.first_name + ' ' + m.last_name + ' (' + m.employee_code + ')' + desig;
         if (parseInt(m.id, 10) === selectedManagerId) {
             opt.selected = true;
         }
         mgrSelect.appendChild(opt);
     });
 
-    // 4. Login Account
+    // 4. Login Account: deduplicated active users
     const userSelect = document.getElementById('userId');
     if (userSelect) {
         userSelect.innerHTML = '<option value="0">-- None (Unlinked) --</option>';
+        const seenUserIds = new Set();
         allUsers.filter(u => parseInt(u.company_id, 10) === cid).forEach(u => {
+            const uid = parseInt(u.id, 10);
+            if (seenUserIds.has(uid)) return;
+            seenUserIds.add(uid);
             const opt = document.createElement('option');
             opt.value = u.id;
             opt.textContent = u.full_name + ' (' + u.username + (u.email ? ' - ' + u.email : '') + ')';
@@ -851,7 +1094,10 @@ function onCompanyChange() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', onCompanyChange);
+document.addEventListener('DOMContentLoaded', function() {
+    onCompanyChange();
+    onDocTypeChange();
+});
 </script>
 
 <?php require __DIR__ . '/../../includes/footer.php'; ?>

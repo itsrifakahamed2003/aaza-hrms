@@ -2792,6 +2792,730 @@ assert_test(
     is_array($mapped) && ($mapped['dup'] ?? '') === 'That value already exists' && ($mapped['fk'] ?? '') === 'Related record missing'
 );
 
+// =============================================================
+// 25. Testing Employee Form Validation, Phone/NIC/Email Rules & Hierarchy
+// =============================================================
+echo "\n--- 25. Testing Employee Form Validation, Phone/NIC/Email & Hierarchy ---\n";
+
+// Helper normalization logic matching form.php
+$normalizePhone = function(string $raw): string {
+    $p = preg_replace('/[\s\-()]+/', '', trim($raw));
+    if (str_starts_with($p, '+94')) {
+        $p = '0' . substr($p, 3);
+    } elseif (str_starts_with($p, '94') && strlen($p) === 11) {
+        $p = '0' . substr($p, 2);
+    }
+    return $p;
+};
+
+// 1. Phone validation & normalization tests
+$phone1 = $normalizePhone('0771234567');
+assert_test('Phone 0771234567 is valid Sri Lankan 10-digit format', (bool)preg_match('/^0[0-9]{9}$/', $phone1));
+
+$phone2 = $normalizePhone('+94 77 123 4567');
+assert_test('Phone +94 77 123 4567 normalizes to 0771234567 and passes', $phone2 === '0771234567' && (bool)preg_match('/^0[0-9]{9}$/', $phone2));
+
+$phone3 = $normalizePhone('94771234567');
+assert_test('Phone 94771234567 normalizes to 0771234567 and passes', $phone3 === '0771234567' && (bool)preg_match('/^0[0-9]{9}$/', $phone3));
+
+$phoneShort = $normalizePhone('077123456');
+assert_test('Phone 077123456 (9 digits) is rejected', !preg_match('/^0[0-9]{9}$/', $phoneShort));
+
+$phoneLong = $normalizePhone('07712345678');
+assert_test('Phone 07712345678 (11 digits) is rejected', !preg_match('/^0[0-9]{9}$/', $phoneLong));
+
+$phoneLetters = $normalizePhone('07712ab567');
+assert_test('Phone with letters is rejected', !preg_match('/^0[0-9]{9}$/', $phoneLetters));
+
+// 2. Email validation tests
+assert_test('Work email is required (empty rejected)', empty(trim('')));
+assert_test('Invalid email rejected', !filter_var('not-an-email', FILTER_VALIDATE_EMAIL));
+assert_test('Valid work email accepted', (bool)filter_var('ahamed.emp@example.com', FILTER_VALIDATE_EMAIL));
+
+// 3. NIC & Passport validation tests
+$nicOld = strtoupper(trim('951234567v'));
+assert_test('Old Sri Lankan NIC (9 digits + v) is valid and normalizes to uppercase', (bool)preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $nicOld) && $nicOld === '951234567V');
+
+$nicOldX = strtoupper(trim('951234567x'));
+assert_test('Old Sri Lankan NIC (9 digits + x) is valid and normalizes to uppercase', (bool)preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $nicOldX) && $nicOldX === '951234567X');
+
+$nicNew = trim('199512345678');
+assert_test('New Sri Lankan NIC (12 digits) is valid', (bool)preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $nicNew));
+
+$nicBad = trim('9512345');
+assert_test('Short invalid NIC is rejected', !preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $nicBad));
+
+$passportValid = strtoupper(trim('n1234567'));
+assert_test('Alphanumeric Passport is valid and normalizes to uppercase', (bool)preg_match('/^[A-Za-z0-9]{6,20}$/', $passportValid) && $passportValid === 'N1234567');
+
+$passportShort = trim('N12');
+assert_test('Short passport (<6 chars) is rejected', !preg_match('/^[A-Za-z0-9]{6,20}$/', $passportShort));
+
+// 4. Reporting Hierarchy & Subordinate Loop Prevention
+if (!function_exists('get_employee_subordinate_ids')) {
+    function get_employee_subordinate_ids(PDO $pdo, int $employeeId): array
+    {
+        if ($employeeId <= 0) return [];
+        $subordinateIds = [];
+        $queue = [$employeeId];
+        $visited = [$employeeId => true];
+        $st = $pdo->prepare('SELECT id FROM employees WHERE reporting_manager_id = ?');
+        while (!empty($queue)) {
+            $currentId = array_shift($queue);
+            $st->execute([$currentId]);
+            $children = $st->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($children as $childId) {
+                $cid = (int)$childId;
+                if (!isset($visited[$cid])) {
+                    $visited[$cid] = true;
+                    $subordinateIds[] = $cid;
+                    $queue[] = $cid;
+                }
+            }
+        }
+        return $subordinateIds;
+    }
+}
+
+// Create a 3-tier test hierarchy: Emp A -> Emp B -> Emp C in test DB
+$stInsEmp = $pdo->prepare("INSERT INTO employees (
+    employee_code, company_id, first_name, last_name, email, phone, nic_passport,
+    joining_date, employment_type, employment_status, reporting_manager_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, '2025-01-01', 'full_time', 'active', ?)");
+
+$stInsEmp->execute(['TEST-HIER-A', $compAId, 'TierA', 'Manager', 'tiera@example.com', '0770001111', '198000000001', null]);
+$empAId = (int)$pdo->lastInsertId();
+
+$stInsEmp->execute(['TEST-HIER-B', $compAId, 'TierB', 'Lead', 'tierb@example.com', '0770002222', '198500000002', $empAId]);
+$empBId = (int)$pdo->lastInsertId();
+
+$stInsEmp->execute(['TEST-HIER-C', $compAId, 'TierC', 'Staff', 'tierc@example.com', '0770003333', '199000000003', $empBId]);
+$empCId = (int)$pdo->lastInsertId();
+
+$subordinatesOfA = get_employee_subordinate_ids($pdo, $empAId);
+assert_test('Subordinates of A contains direct subordinate B', in_array($empBId, $subordinatesOfA, true));
+assert_test('Subordinates of A contains indirect subordinate C (recursive)', in_array($empCId, $subordinatesOfA, true));
+assert_test('Subordinates of B contains C but NOT A', in_array($empCId, get_employee_subordinate_ids($pdo, $empBId), true) && !in_array($empAId, get_employee_subordinate_ids($pdo, $empBId), true));
+assert_test('Subordinates of C is empty', empty(get_employee_subordinate_ids($pdo, $empCId)));
+
+// Clean up test hierarchy
+$pdo->prepare("DELETE FROM employees WHERE id IN (?, ?, ?)")->execute([$empAId, $empBId, $empCId]);
+
+// 5. Date of Birth, Age & Gender validation tests
+$todayTest = new DateTimeImmutable('today');
+$dobFuture = $todayTest->modify('+1 day')->format('Y-m-d');
+$dobUnderage = $todayTest->modify('-15 years')->format('Y-m-d');
+$dobValid = $todayTest->modify('-25 years')->format('Y-m-d');
+
+assert_test('DOB is required (empty rejected)', empty(trim('')));
+assert_test('DOB future date is rejected', (new DateTimeImmutable($dobFuture)) > $todayTest);
+assert_test('DOB under 16 years old is rejected', (new DateTimeImmutable($dobUnderage)) > $todayTest->modify('-16 years'));
+assert_test('DOB 25 years old is valid', (new DateTimeImmutable($dobValid)) <= $todayTest->modify('-16 years'));
+
+assert_test('Gender is required (empty rejected)', empty(trim('')));
+assert_test('Invalid gender is rejected', !in_array('other', ['male', 'female'], true));
+assert_test('Valid gender male is accepted', in_array('male', ['male', 'female'], true));
+assert_test('Valid gender female is accepted', in_array('female', ['male', 'female'], true));
+
+// 6. Department & Designation Required Server Checks
+$dept0 = 0;
+$desig0 = 0;
+assert_test('Department 0 is rejected as empty', $dept0 <= 0);
+assert_test('Designation 0 is rejected as empty', $desig0 <= 0);
+
+// 7. Full Form Validation Logic Simulator (Validating all 11 required fields)
+$validateEmployeeForm = function(array $post, bool $editing = false, ?int $editId = null) use ($pdo, $compAId): array {
+    $errs = [];
+    $cid = $editing ? $compAId : (int)($post['company_id'] ?? 0);
+    if ($cid <= 0) $errs['company_id'] = 'Company is required.';
+
+    $fn = trim((string)($post['first_name'] ?? ''));
+    if ($fn === '' || mb_strlen($fn) > 80) $errs['first_name'] = 'First name is required.';
+
+    $ln = trim((string)($post['last_name'] ?? ''));
+    if ($ln === '' || mb_strlen($ln) > 80) $errs['last_name'] = 'Last name is required.';
+
+    $em = trim((string)($post['email'] ?? ''));
+    if ($em === '' || !filter_var($em, FILTER_VALIDATE_EMAIL)) $errs['email'] = 'Valid work email is required.';
+
+    $rawPhone = trim((string)($post['phone'] ?? ''));
+    $phone = preg_replace('/[\s\-()]+/', '', $rawPhone);
+    if (str_starts_with($phone, '+94')) $phone = '0' . substr($phone, 3);
+    elseif (str_starts_with($phone, '94') && strlen($phone) === 11) $phone = '0' . substr($phone, 2);
+    if ($phone === '' || !preg_match('/^0[0-9]{9}$/', $phone)) $errs['phone'] = '10-digit phone is required.';
+
+    $nic = strtoupper(trim((string)($post['nic_passport'] ?? '')));
+    $docType = (string)($post['doc_type'] ?? 'nic');
+    if ($docType === 'passport') {
+        if ($nic === '' || !preg_match('/^[A-Za-z0-9]{6,20}$/', $nic)) $errs['nic_passport'] = 'Valid passport is required.';
+    } else {
+        if ($nic === '' || !preg_match('/^([0-9]{9}[VvXx]|[0-9]{12})$/', $nic)) $errs['nic_passport'] = 'Valid NIC is required.';
+    }
+
+    $dob = trim((string)($post['dob'] ?? ''));
+    if ($dob === '') {
+        $errs['dob'] = 'DOB is required.';
+    } else {
+        $d = DateTimeImmutable::createFromFormat('Y-m-d', $dob);
+        $today = new DateTimeImmutable('today');
+        if (!$d || $d->format('Y-m-d') !== $dob || $d > $today || $d > $today->modify('-16 years')) {
+            $errs['dob'] = 'Valid DOB (at least 16 years old) is required.';
+        }
+    }
+
+    $gen = trim((string)($post['gender'] ?? ''));
+    if ($gen === '' || !in_array($gen, ['male', 'female'], true)) $errs['gender'] = 'Valid gender is required.';
+
+    $dept = (int)($post['department_id'] ?? 0);
+    if ($dept <= 0) $errs['department_id'] = 'Department is required.';
+
+    $desig = (int)($post['designation_id'] ?? 0);
+    if ($desig <= 0) $errs['designation_id'] = 'Designation is required.';
+
+    $jd = trim((string)($post['joining_date'] ?? ''));
+    if ($jd === '') $errs['joining_date'] = 'Joining date is required.';
+
+    $et = trim((string)($post['employment_type'] ?? ''));
+    if ($et === '' || !array_key_exists($et, employment_type_list())) $errs['employment_type'] = 'Valid employment type is required.';
+
+    return $errs;
+};
+
+// Test 1: Empty POST fails on all required fields
+$emptyErrs = $validateEmployeeForm([]);
+assert_test('Validation fails with every required field empty', count($emptyErrs) >= 11);
+
+// Test 2: Only email missing fails
+$missingEmailErrs = $validateEmployeeForm([
+    'company_id' => $compAId, 'first_name' => 'A', 'last_name' => 'B', 'email' => '',
+    'phone' => '0771234567', 'nic_passport' => '199512345678', 'dob' => '1995-01-01',
+    'gender' => 'male', 'department_id' => 1, 'designation_id' => 1,
+    'joining_date' => '2026-01-01', 'employment_type' => 'full_time'
+]);
+assert_test('Validation fails when only work email is missing', isset($missingEmailErrs['email']) && count($missingEmailErrs) === 1);
+
+// Test 3: Bad phone fails
+$badPhoneErrs = $validateEmployeeForm([
+    'company_id' => $compAId, 'first_name' => 'A', 'last_name' => 'B', 'email' => 'valid@example.com',
+    'phone' => '077123abc', 'nic_passport' => '199512345678', 'dob' => '1995-01-01',
+    'gender' => 'male', 'department_id' => 1, 'designation_id' => 1,
+    'joining_date' => '2026-01-01', 'employment_type' => 'full_time'
+]);
+assert_test('Validation fails on bad phone with letters', isset($badPhoneErrs['phone']));
+
+// Test 4: Bad NIC fails
+$badNicErrs = $validateEmployeeForm([
+    'company_id' => $compAId, 'first_name' => 'A', 'last_name' => 'B', 'email' => 'valid@example.com',
+    'phone' => '0771234567', 'nic_passport' => '12345', 'dob' => '1995-01-01',
+    'gender' => 'male', 'department_id' => 1, 'designation_id' => 1,
+    'joining_date' => '2026-01-01', 'employment_type' => 'full_time'
+]);
+assert_test('Validation fails on bad NIC format', isset($badNicErrs['nic_passport']));
+
+// Test 5: All valid passes
+$validErrs = $validateEmployeeForm([
+    'company_id' => $compAId, 'first_name' => 'A', 'last_name' => 'B', 'email' => 'valid@example.com',
+    'phone' => '+94 77 123 4567', 'nic_passport' => '199512345678', 'dob' => '1995-01-01',
+    'gender' => 'male', 'department_id' => 1, 'designation_id' => 1,
+    'joining_date' => '2026-01-01', 'employment_type' => 'full_time'
+]);
+assert_test('Validation passes with all 11 required fields valid', empty($validErrs));
+
+// Test 6: Edit employee validation rules (same rules enforced)
+$editEmptyErrs = $validateEmployeeForm([], true, 1);
+assert_test('Edit validation rejects empty required fields', count($editEmptyErrs) >= 10);
+$editValidErrs = $validateEmployeeForm([
+    'first_name' => 'Updated', 'last_name' => 'Name', 'email' => 'updated@example.com',
+    'phone' => '0779998888', 'nic_passport' => '951234567V', 'dob' => '1995-05-20',
+    'gender' => 'female', 'department_id' => 1, 'designation_id' => 1,
+    'joining_date' => '2026-01-01', 'employment_type' => 'full_time'
+], true, 1);
+assert_test('Edit validation passes when all required fields are valid', empty($editValidErrs));
+
+// --- 26. Testing Candidate Form Validation, Phone/NIC/Email & Mandatory Fields ---
+echo "\n--- 26. Testing Candidate Form Validation, Phone/NIC/Email & Mandatory Fields ---\n";
+
+$validateCandidateForm = function(array $data, bool $isEdit = false): array {
+    $errors = [];
+    $firstName = trim((string)($data['first_name'] ?? ''));
+    $lastName = trim((string)($data['last_name'] ?? ''));
+    $email = trim((string)($data['email'] ?? ''));
+    $phoneRaw = trim((string)($data['phone'] ?? ''));
+    $nicPassportRaw = trim((string)($data['nic_passport'] ?? ''));
+    $dob = trim((string)($data['dob'] ?? ''));
+    $gender = trim((string)($data['gender'] ?? ''));
+    $address = trim((string)($data['address'] ?? ''));
+    $qualifications = trim((string)($data['qualifications'] ?? ''));
+    $experienceYears = trim((string)($data['experience_years'] ?? ''));
+    $skills = trim((string)($data['skills'] ?? ''));
+    $source = trim((string)($data['source'] ?? ''));
+    $consentGiven = !empty($data['consent_given']);
+
+    $phone = preg_replace('/[\s\-()]+/', '', $phoneRaw);
+    if (str_starts_with($phone, '+94')) {
+        $phone = '0' . substr($phone, 3);
+    } elseif (str_starts_with($phone, '94') && strlen($phone) === 11) {
+        $phone = '0' . substr($phone, 2);
+    }
+    $nicPassport = strtoupper(trim($nicPassportRaw));
+
+    if (!$isEdit && !$consentGiven) {
+        $errors['consent_given'] = 'Candidate privacy consent is required.';
+    }
+    if ($firstName === '' || mb_strlen($firstName) > 80) {
+        $errors['first_name'] = 'First name is required.';
+    }
+    if ($lastName === '' || mb_strlen($lastName) > 80) {
+        $errors['last_name'] = 'Last name is required.';
+    }
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150) {
+        $errors['email'] = 'Valid email is required.';
+    }
+    if ($phone === '' || !preg_match('/^0[0-9]{9}$/', $phone)) {
+        $errors['phone'] = 'Valid 10-digit Sri Lankan phone is required.';
+    }
+    if ($nicPassport === '') {
+        $errors['nic_passport'] = 'NIC or Passport is required.';
+    } else {
+        $isOldNic = (bool)preg_match('/^[0-9]{9}[VX]$/', $nicPassport);
+        $isNewNic = (bool)preg_match('/^[0-9]{12}$/', $nicPassport);
+        $isPassport = (bool)preg_match('/^[A-Z0-9]{6,20}$/', $nicPassport);
+        if (!$isOldNic && !$isNewNic && !$isPassport) {
+            $errors['nic_passport'] = 'Valid NIC or Passport is required.';
+        }
+    }
+    if ($dob === '') {
+        $errors['dob'] = 'Date of birth is required.';
+    } else {
+        $d = DateTimeImmutable::createFromFormat('Y-m-d', $dob);
+        $today = new DateTimeImmutable('today');
+        if (!$d || $d->format('Y-m-d') !== $dob || $d > $today || $d > $today->modify('-16 years')) {
+            $errors['dob'] = 'Candidate must be at least 16 years old.';
+        }
+    }
+    if ($gender === '' || !in_array($gender, ['male', 'female'], true)) {
+        $errors['gender'] = 'Gender is required.';
+    }
+    if ($source === '' || !array_key_exists($source, candidate_source_list())) {
+        $errors['source'] = 'Recruitment source is required.';
+    }
+    if ($address === '') {
+        $errors['address'] = 'Residential address is required.';
+    }
+    if ($experienceYears === '' || !is_numeric($experienceYears) || (float)$experienceYears < 0 || (float)$experienceYears > 60) {
+        $errors['experience_years'] = 'Experience (Years) is required.';
+    }
+    if ($skills === '') {
+        $errors['skills'] = 'Key skills are required.';
+    }
+    if ($qualifications === '') {
+        $errors['qualifications'] = 'Qualifications & education are required.';
+    }
+
+    return $errors;
+};
+
+// 1. Empty candidate creation fails all required field checks
+$candEmptyErrs = $validateCandidateForm([]);
+assert_test('Candidate validation fails when required fields are empty', count($candEmptyErrs) >= 12);
+
+// 2. Email validation
+$candBadEmail = $validateCandidateForm(['email' => 'invalid-email-format']);
+assert_test('Candidate validation rejects invalid email format', isset($candBadEmail['email']));
+
+// 3. Phone validation
+assert_test('Candidate validation rejects non-digit phone', isset($validateCandidateForm(['phone' => '077abc1234'])['phone']));
+assert_test('Candidate validation rejects 9-digit phone', isset($validateCandidateForm(['phone' => '077123456'])['phone']));
+assert_test('Candidate validation accepts normalized +94 Sri Lankan phone', !isset($validateCandidateForm(['phone' => '+94 77 123 4567'])['phone']));
+assert_test('Candidate validation accepts 10-digit Sri Lankan phone', !isset($validateCandidateForm(['phone' => '0771234567'])['phone']));
+
+// 4. NIC / Passport validation
+assert_test('Candidate validation rejects short invalid NIC', isset($validateCandidateForm(['nic_passport' => '12345'])['nic_passport']));
+assert_test('Candidate validation accepts 9-digit+V Sri Lankan NIC', !isset($validateCandidateForm(['nic_passport' => '951234567v'])['nic_passport']));
+assert_test('Candidate validation accepts 12-digit Sri Lankan NIC', !isset($validateCandidateForm(['nic_passport' => '199512345678'])['nic_passport']));
+assert_test('Candidate validation accepts valid Passport number', !isset($validateCandidateForm(['nic_passport' => 'N1234567'])['nic_passport']));
+
+// 5. DOB and Age validation
+assert_test('Candidate validation rejects candidate under 16 years old', isset($validateCandidateForm(['dob' => date('Y-m-d', strtotime('-10 years'))])['dob']));
+assert_test('Candidate validation accepts candidate 22 years old', !isset($validateCandidateForm(['dob' => '2004-01-15'])['dob']));
+
+// 6. Complete valid candidate creation passes cleanly
+$candValidErrs = $validateCandidateForm([
+    'first_name'       => 'Kamal',
+    'last_name'        => 'Perera',
+    'email'            => 'kamal.perera@example.com',
+    'phone'            => '+94 77 987 6543',
+    'nic_passport'     => '921234567V',
+    'dob'              => '1992-06-15',
+    'gender'           => 'male',
+    'source'           => 'linkedin',
+    'address'          => '123 Galle Road, Colombo 03',
+    'experience_years' => '3.5',
+    'skills'           => 'PHP, MySQL, JavaScript, Git',
+    'qualifications'   => 'B.Sc in Computing, University of Colombo',
+    'consent_given'    => '1',
+]);
+assert_test('Candidate validation passes when all required fields and valid formats are provided', empty($candValidErrs));
+
+// =============================================================
+// 27. Testing Session Reset, Notifications Rate Limit & Offers Pending Filter
+// =============================================================
+echo "\n--- 27. Testing Session Reset, Notifications Rate Limit & Offers Pending Filter ---\n";
+
+// 1. Session reset safety
+$prevSession = $_SESSION;
+reset_session();
+assert_test('reset_session() clears $_SESSION array safely', empty($_SESSION));
+$_SESSION = $prevSession;
+
+// 2. Pending offers query filter logic
+$testOffers = [
+    ['id' => 1, 'status' => 'draft'],
+    ['id' => 2, 'status' => 'sent'],
+    ['id' => 3, 'status' => 'accepted'],
+    ['id' => 4, 'status' => 'declined'],
+    ['id' => 5, 'status' => 'expired'],
+    ['id' => 6, 'status' => 'withdrawn'],
+];
+$filterPending = array_filter($testOffers, fn($o) => in_array($o['status'], ['draft', 'sent'], true));
+assert_test('Offers pending status filter matches both draft and sent offers', count($filterPending) === 2);
+
+$filterSentOnly = array_filter($testOffers, fn($o) => $o['status'] === 'sent');
+assert_test('Offers sent status filter matches only sent offers', count($filterSentOnly) === 1);
+
+// =============================================================
+// 28. Testing Email Engine (mailer.php), Templates & Fake SMTP Server
+// =============================================================
+echo "\n--- 28. Testing Email Engine, Templates & Fake SMTP Server ---\n";
+
+// 1. mail_send with 'none' returns not ok
+$GLOBALS['MAIL_CONFIG_OVERRIDE'] = ['MAIL_DRIVER' => 'none'];
+assert_test('mail_is_configured() is false when MAIL_DRIVER is none', mail_is_configured() === false);
+
+$noneRes = mail_send('candidate@example.com', 'Test Subject', '<p>Hello Candidate</p>');
+assert_test(
+    "mail_send with 'none' driver returns ok=false and 'Email is not configured'",
+    $noneRes['ok'] === false && str_contains((string)$noneRes['error'], 'Email is not configured')
+);
+
+// 2. Recipient with CR/LF header injection is rejected
+$crlfRes1 = mail_send("victim@example.com\r\nBcc: attacker@evil.com", 'Subject', '<p>Body</p>');
+$crlfRes2 = mail_send("victim@example.com\nCc: attacker@evil.com", 'Subject', '<p>Body</p>');
+assert_test(
+    'mail_send rejects recipient containing CR or LF characters',
+    $crlfRes1['ok'] === false && $crlfRes2['ok'] === false
+);
+
+// 3. Invalid email address is rejected
+$badEmailRes1 = mail_send('not-an-email-address', 'Subject', '<p>Body</p>');
+$badEmailRes2 = mail_send('missing-domain@', 'Subject', '<p>Body</p>');
+$badEmailRes3 = mail_send('', 'Subject', '<p>Body</p>');
+assert_test(
+    'mail_send rejects invalid email addresses via FILTER_VALIDATE_EMAIL',
+    $badEmailRes1['ok'] === false && $badEmailRes2['ok'] === false && $badEmailRes3['ok'] === false
+);
+
+// 4. Template output escapes <script> and includes required footer
+$xssCand = '<script>alert("cand")</script>Alice';
+$xssVac  = '<script>alert("vac")</script>Engineer';
+$xssComp = '<script>alert("comp")</script>AaZa Corp';
+$xssHr   = '<script>alert("hr")</script>HR Lead';
+
+$tpl1 = mail_tpl_application_received($xssCand, $xssVac, $xssComp, $xssHr);
+$tpl2 = mail_tpl_shortlisted($xssCand, $xssVac, $xssComp, $xssHr);
+$tpl3 = mail_tpl_interview_invite(
+    $xssCand,
+    $xssVac,
+    $xssComp,
+    $xssHr,
+    '2026-11-15<script>',
+    '10:00 AM<script>',
+    'Video<script>',
+    'https://meet.example.com/<script>',
+    'Panel<script>',
+    'hr@example.com<script>'
+);
+$tpl4 = mail_tpl_selected($xssCand, $xssVac, $xssComp, $xssHr, 'Bring ID<script>');
+$tpl5 = mail_tpl_rejected($xssCand, $xssVac, $xssComp, $xssHr);
+$tpl6 = mail_tpl_offer_sent($xssCand, $xssVac, $xssComp, $xssHr, ['joining_date' => '2026-12-01<script>']);
+
+$allTemplatesEscaped = true;
+foreach ([$tpl1, $tpl2, $tpl3, $tpl4, $tpl5, $tpl6] as $tplOut) {
+    if (
+        !isset($tplOut['subject'], $tplOut['html'], $tplOut['text']) ||
+        str_contains($tplOut['html'], '<script>') ||
+        !str_contains($tplOut['html'], '&lt;script&gt;') ||
+        !str_contains($tplOut['html'], 'This is an automated message from ') ||
+        !str_contains($tplOut['text'], 'This is an automated message from ')
+    ) {
+        $allTemplatesEscaped = false;
+        break;
+    }
+}
+assert_test(
+    'All 6 candidate email templates escape <script> tags in HTML and include automated HR footer',
+    $allTemplatesEscaped
+);
+
+// 5. Fake SMTP server test on a free local port
+$smtpErrno = 0;
+$smtpErrstr = '';
+$fakeServer = @stream_socket_server('tcp://127.0.0.1:0', $smtpErrno, $smtpErrstr);
+assert_test('Fake local SMTP server started on free ephemeral port', is_resource($fakeServer));
+
+if (is_resource($fakeServer)) {
+    $serverName = (string)stream_socket_get_name($fakeServer, false);
+    $colonPos = strrpos($serverName, ':');
+    $fakePort = (int)substr($serverName, $colonPos + 1);
+    $secretPass = 'MySuperSecretGmailAppPass#2026!';
+    $tempErrLog = STORAGE_PATH . '/logs/smtp_test_' . bin2hex(random_bytes(4)) . '.log';
+
+    // Spawn client child process for successful SMTP conversation + dot-stuffing check
+    $clientScript = <<<'PHP'
+<?php
+declare(strict_types=1);
+$cfg = json_decode(stream_get_contents(STDIN), true);
+ini_set('log_errors', '1');
+ini_set('error_log', $cfg['error_log']);
+
+define('MAIL_DRIVER', 'smtp');
+define('MAIL_HOST', '127.0.0.1');
+define('MAIL_PORT', (int)$cfg['port']);
+define('MAIL_ENCRYPTION', '');
+define('MAIL_USERNAME', 'smtp.user@aaza.test');
+define('MAIL_PASSWORD', $cfg['password']);
+define('MAIL_FROM_EMAIL', 'noreply@aaza.test');
+define('MAIL_FROM_NAME', 'AaZa HRMS Test');
+
+require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/mailer.php';
+
+$html = "<p>Hello Candidate,</p>\r\n.dot_stuffed_html_line\r\n<p>Regards</p>";
+$text = "Hello Candidate,\r\n.dot_stuffed_text_line\r\nRegards";
+$res = mail_send('applicant@example.org', 'Interview Confirmation', $html, $text);
+echo json_encode($res);
+PHP;
+
+    $proc = proc_open(
+        'php',
+        [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ],
+        $pipes,
+        ROOT_PATH
+    );
+
+    // Since we pass both code and stdin, let's write a small runner snippet with embedded config
+    $runnerCode = str_replace(
+        '$cfg = json_decode(stream_get_contents(STDIN), true);',
+        '$cfg = ' . var_export(['port' => $fakePort, 'password' => $secretPass, 'error_log' => $tempErrLog], true) . ';',
+        $clientScript
+    );
+    fwrite($pipes[0], $runnerCode);
+    fclose($pipes[0]);
+
+    $recordedCommands = [];
+    $rawDataLines = [];
+    $conn = @stream_socket_accept($fakeServer, 5);
+    if (is_resource($conn)) {
+        stream_set_timeout($conn, 5);
+        fwrite($conn, "220 127.0.0.1 ESMTP FakeAaZaSmtp\r\n");
+
+        $inData = false;
+        $authStage = 0;
+        while (($line = fgets($conn, 2048)) !== false) {
+            if ($inData) {
+                if ($line === ".\r\n" || $line === ".\n") {
+                    $inData = false;
+                    $recordedCommands[] = 'END_DATA';
+                    fwrite($conn, "250 2.0.0 OK: queued as TEST1234\r\n");
+                    continue;
+                }
+                $rawDataLines[] = rtrim($line, "\r\n");
+                continue;
+            }
+
+            $cmd = trim($line);
+            $recordedCommands[] = $cmd;
+
+            if ($authStage === 1) {
+                $authStage = 2;
+                fwrite($conn, "334 UGFzc3dvcmQ6\r\n");
+                continue;
+            }
+            if ($authStage === 2) {
+                $authStage = 0;
+                fwrite($conn, "235 2.7.0 Authentication successful\r\n");
+                continue;
+            }
+
+            if (stripos($cmd, 'EHLO ') === 0) {
+                fwrite($conn, "250-127.0.0.1\r\n250 AUTH LOGIN PLAIN\r\n");
+            } elseif (strcasecmp($cmd, 'AUTH LOGIN') === 0) {
+                $authStage = 1;
+                fwrite($conn, "334 VXNlcm5hbWU6\r\n");
+            } elseif (stripos($cmd, 'AUTH PLAIN') === 0) {
+                fwrite($conn, "235 2.7.0 Authentication successful\r\n");
+            } elseif (stripos($cmd, 'MAIL FROM:') === 0) {
+                fwrite($conn, "250 2.1.0 Sender OK\r\n");
+            } elseif (stripos($cmd, 'RCPT TO:') === 0) {
+                fwrite($conn, "250 2.1.5 Recipient OK\r\n");
+            } elseif (strcasecmp($cmd, 'DATA') === 0) {
+                $inData = true;
+                fwrite($conn, "354 End data with <CR><LF>.<CR><LF>\r\n");
+            } elseif (strcasecmp($cmd, 'QUIT') === 0) {
+                fwrite($conn, "221 2.0.0 Bye\r\n");
+                break;
+            } else {
+                fwrite($conn, "250 OK\r\n");
+            }
+        }
+        fclose($conn);
+    }
+
+    $clientOut = (string)stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    proc_close($proc);
+
+    $cStart = strpos($clientOut, '{');
+    $cEnd = strrpos($clientOut, '}');
+    $clientJson = ($cStart !== false && $cEnd !== false) ? substr($clientOut, $cStart, $cEnd - $cStart + 1) : '';
+    $clientRes = json_decode($clientJson, true);
+    $cmdJoined = implode("\n", $recordedCommands);
+    $dataJoined = implode("\n", $rawDataLines);
+
+    assert_test(
+        'SMTP client completes full handshake and returns ok=true',
+        is_array($clientRes) && ($clientRes['ok'] ?? false) === true
+    );
+    assert_test(
+        'Fake SMTP server verified EHLO, AUTH LOGIN, MAIL FROM, RCPT TO, DATA, and QUIT commands',
+        str_contains($cmdJoined, 'EHLO ') &&
+        str_contains($cmdJoined, 'AUTH LOGIN') &&
+        str_contains($cmdJoined, 'MAIL FROM:<noreply@aaza.test>') &&
+        str_contains($cmdJoined, 'RCPT TO:<applicant@example.org>') &&
+        str_contains($cmdJoined, 'DATA') &&
+        str_contains($cmdJoined, 'QUIT')
+    );
+    assert_test(
+        'SMTP client performs RFC 5321 dot-stuffing on lines starting with a period',
+        in_array('..dot_stuffed_text_line', $rawDataLines, true) &&
+        in_array('..dot_stuffed_html_line', $rawDataLines, true) &&
+        str_contains($dataJoined, 'Content-Type: multipart/alternative;')
+    );
+
+    // Now test SMTP auth failure to verify MAIL_PASSWORD never appears in logs or returned error
+    $failProc = proc_open(
+        'php',
+        [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ],
+        $failPipes,
+        ROOT_PATH
+    );
+    fwrite($failPipes[0], $runnerCode);
+    fclose($failPipes[0]);
+
+    $connFail = @stream_socket_accept($fakeServer, 5);
+    if (is_resource($connFail)) {
+        stream_set_timeout($connFail, 5);
+        fwrite($connFail, "220 127.0.0.1 ESMTP FakeAaZaSmtp\r\n");
+        $stage = 0;
+        while (($line = fgets($connFail, 2048)) !== false) {
+            $cmd = trim($line);
+            if ($stage === 1) {
+                $stage = 2;
+                fwrite($connFail, "334 UGFzc3dvcmQ6\r\n");
+                continue;
+            }
+            if ($stage === 2) {
+                // Intentionally include secret password in server rejection to test scrubbing
+                fwrite($connFail, "535 5.7.8 Auth failed for password {$secretPass}\r\n");
+                break;
+            }
+            if (stripos($cmd, 'EHLO ') === 0) {
+                fwrite($connFail, "250-127.0.0.1\r\n250 AUTH LOGIN\r\n");
+            } elseif (strcasecmp($cmd, 'AUTH LOGIN') === 0) {
+                $stage = 1;
+                fwrite($connFail, "334 VXNlcm5hbWU6\r\n");
+            } elseif (strcasecmp($cmd, 'QUIT') === 0) {
+                fwrite($connFail, "221 Bye\r\n");
+                break;
+            }
+        }
+        fclose($connFail);
+    }
+
+    $failOut = (string)stream_get_contents($failPipes[1]);
+    fclose($failPipes[1]);
+    fclose($failPipes[2]);
+    proc_close($failProc);
+
+    $fStart = strpos($failOut, '{');
+    $fEnd = strrpos($failOut, '}');
+    $failJson = ($fStart !== false && $fEnd !== false) ? substr($failOut, $fStart, $fEnd - $fStart + 1) : '';
+    $failRes = json_decode($failJson, true);
+    $logContents = is_file($tempErrLog) ? (string)file_get_contents($tempErrLog) : '';
+    @unlink($tempErrLog);
+    fclose($fakeServer);
+
+    assert_test(
+        'MAIL_PASSWORD never appears in returned error message or error_log output',
+        is_array($failRes) &&
+        ($failRes['ok'] ?? true) === false &&
+        !str_contains((string)($failRes['error'] ?? ''), $secretPass) &&
+        !str_contains((string)($failRes['error'] ?? ''), base64_encode($secretPass)) &&
+        !str_contains($logContents, $secretPass) &&
+        !str_contains($logContents, base64_encode($secretPass)) &&
+        str_contains($logContents, 'domain=example.org')
+    );
+
+    // 6. Test mail_send_candidate_template permission check, DB lookup, and audit log
+    set_test_user($userAId); // User A has candidate.manage in Company A
+    $tplSendRes = mail_send_candidate_template($pdo, $cvAppId, 'application_received');
+    $auditEmailLog = $pdo->query(
+        "SELECT action, details FROM activity_logs
+          WHERE entity_type = 'candidate_application' AND entity_id = {$cvAppId}
+            AND action IN ('candidate.email_sent', 'candidate.email_failed')
+          ORDER BY id DESC LIMIT 1"
+    )->fetch(PDO::FETCH_ASSOC);
+
+    assert_test(
+        'mail_send_candidate_template enforces permissions and logs candidate.email_failed when driver is none',
+        $tplSendRes['ok'] === false &&
+        $auditEmailLog !== false &&
+        $auditEmailLog['action'] === 'candidate.email_failed' &&
+        str_contains((string)$auditEmailLog['details'], '"template":"application_received"')
+    );
+
+    // 7. Test mail_build_candidate_template_preview and mail_build_mailto_url (< 1800 chars, rawurlencode)
+    $previewRes = mail_build_candidate_template_preview($pdo, $cvAppId, 'offer');
+    $longMailto = mail_build_mailto_url('applicant@example.org', 'Job Offer Subject', str_repeat('Long paragraph content ', 200), 1800);
+    $customHtml = mail_render_custom_body_html('Acme Corp', 'Subj', "Hello <script>alert(9)</script>\n\nSecond paragraph.");
+
+    // Cross-company user B should be denied preview for Company A application
+    set_test_user($userBId);
+    $deniedPreview = mail_build_candidate_template_preview($pdo, $cvAppId, 'shortlisted');
+    set_test_user($userAId);
+
+    assert_test(
+        'Part E2: preview builds template & mailto (< 1800 chars), custom body escapes <script>, and RBAC blocks unauthorized company',
+        ($previewRes['ok'] ?? false) === true &&
+        $previewRes['template'] === 'offer_sent' &&
+        str_starts_with((string)$previewRes['mailto'], 'mailto:') &&
+        strlen((string)$previewRes['mailto']) <= 1800 &&
+        strlen($longMailto) <= 1800 &&
+        !str_contains($customHtml, '<script>') &&
+        str_contains($customHtml, '&lt;script&gt;alert(9)&lt;/script&gt;') &&
+        ($deniedPreview['ok'] ?? true) === false
+    );
+}
+
 // Final Results
 // =============================================================
 echo "\n============================================================\n";

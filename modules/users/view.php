@@ -367,19 +367,23 @@ require __DIR__ . '/../../includes/header.php';
 ?>
 
 <!-- Page Header -->
-<div class="page-header">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb breadcrumb-clean">
-                <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="<?= e(url('modules/users/index.php')) ?>">Users</a></li>
-                <li class="breadcrumb-item active" aria-current="page"><?= e($targetUser['full_name']) ?></li>
-            </ol>
-        </nav>
-        <div class="d-flex align-items-center gap-2">
-            <h1 class="page-header-title"><?= e($targetUser['full_name']) ?></h1>
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="<?= e(url('modules/users/index.php')) ?>">Users</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><?= e($targetUser['username']) ?></li>
+    </ol>
+</nav>
+
+<!-- Detail Header -->
+<div class="detail-header">
+    <div class="detail-header-main">
+        <div class="detail-header-title-row">
+            <h1 class="detail-header-title"><?= e($targetUser['full_name']) ?></h1>
+            <span class="badge text-bg-dark font-monospace">@<?= e($targetUser['username']) ?></span>
             <?php if ((int)$targetUser['is_group_admin'] === 1): ?>
-                <span class="badge text-bg-dark"><i class="bi bi-shield-shaded me-1"></i>Group Admin</span>
+                <span class="badge text-bg-primary"><i class="bi bi-shield-check me-1"></i>Group Admin</span>
             <?php endif; ?>
             <?php if ((int)$targetUser['is_active'] === 1): ?>
                 <span class="badge text-bg-success">Active</span>
@@ -387,66 +391,98 @@ require __DIR__ . '/../../includes/header.php';
                 <span class="badge text-bg-danger">Inactive</span>
             <?php endif; ?>
         </div>
-        <p class="page-header-desc">Inspect assigned roles, effective multi-tenant permissions, and recent audit activity.</p>
+        <p class="detail-header-subtitle">
+            <i class="bi bi-envelope me-1"></i><?= e($targetUser['email']) ?>
+            &bull; Created: <?= e(date('M j, Y', strtotime((string)$targetUser['created_at']))) ?>
+            <?php if ($targetUser['last_login_at']): ?>
+                &bull; Last sign-in: <?= e(date('M j, Y H:i', strtotime((string)$targetUser['last_login_at']))) ?>
+            <?php endif; ?>
+        </p>
     </div>
-    <div class="page-header-actions">
-        <a class="btn btn-outline-secondary btn-sm" href="<?= e(url('modules/users/index.php')) ?>">
-            <i class="bi bi-arrow-left me-1"></i> Back to Users
-        </a>
+
+    <div class="detail-header-actions">
+        <!-- ONE Primary Button -->
+        <?php if ($canManageUsers): ?>
+            <a class="btn btn-primary btn-sm" href="<?= e(url('modules/users/form.php?id=' . $id)) ?>">
+                <i class="bi bi-pencil me-1"></i> Edit User Info
+            </a>
+        <?php endif; ?>
+
+        <!-- ONE "More" 3-dot menu -->
+        <?php
+        $usrMore = [];
+        if ($canManageUsers || $isSelf) {
+            $usrMore[] = [
+                'type' => 'button',
+                'icon' => 'bi-key',
+                'label' => 'Reset Password',
+                'modal' => '#resetPasswordModal',
+            ];
+        }
+        if ($canManageUsers && !$isSelf) {
+            $usrMore[] = [
+                'type' => 'post',
+                'icon' => (int)$targetUser['is_active'] === 1 ? 'bi-slash-circle' : 'bi-check-circle',
+                'label' => (int)$targetUser['is_active'] === 1 ? 'Deactivate Account' : 'Activate Account',
+                'url' => 'modules/users/view.php?id=' . $id,
+                'params' => ['action' => 'toggle_status'],
+                'confirm' => 'Are you sure you want to ' . ((int)$targetUser['is_active'] === 1 ? 'deactivate' : 'activate') . ' user "' . e($targetUser['full_name']) . '"?',
+                'confirm_type' => (int)$targetUser['is_active'] === 1 ? 'danger' : 'success',
+                'danger' => ((int)$targetUser['is_active'] === 1),
+            ];
+        }
+        $usrMore[] = [
+            'type' => 'link',
+            'icon' => 'bi-arrow-left',
+            'label' => 'Back to Users',
+            'url' => 'modules/users/index.php',
+        ];
+        echo action_menu($usrMore, [
+            'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+            'aria_label' => 'More user actions',
+        ]);
+        ?>
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- LEFT COLUMN: Profile Card & Quick Actions (4 cols) -->
+<div class="row g-3 align-items-start">
+    <!-- LEFT COLUMN: Profile Card (4 cols) -->
     <div class="col-lg-4 col-xl-3">
-        <div class="card border-0 shadow-sm sticky-top" style="top: 80px; z-index: 10;">
-            <div class="card-body p-4 text-center">
-                <div class="avatar-initials-lg mx-auto mb-3">
-                    <?= e($uInitials) ?>
-                </div>
-                <h2 class="fs-5 fw-bold mb-1 text-body"><?= e($targetUser['full_name']) ?></h2>
-                <div class="small text-muted mb-2 font-monospace">@<?= e($targetUser['username']) ?></div>
-                <div class="small text-muted mb-3">
-                    <i class="bi bi-envelope me-1"></i> <?= e($targetUser['email']) ?>
-                </div>
-
-                <div class="d-flex justify-content-center gap-2 mb-3">
-                    <?php if ((int)$targetUser['is_active'] === 1): ?>
-                        <span class="badge text-bg-success"><i class="bi bi-check-circle me-1"></i>Account Active</span>
-                    <?php else: ?>
-                        <span class="badge text-bg-danger"><i class="bi bi-slash-circle me-1"></i>Account Inactive</span>
-                    <?php endif; ?>
-
-                    <?php if ((int)$targetUser['is_group_admin'] === 1): ?>
-                        <span class="badge text-bg-dark"><i class="bi bi-shield-check me-1"></i>Superuser</span>
-                    <?php endif; ?>
+        <div class="detail-card">
+            <div class="card-header">
+                <span>Account Profile</span>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="avatar-initials-lg mx-auto mb-2">
+                        <?= e($uInitials) ?>
+                    </div>
+                    <div class="fw-bold text-body"><?= e($targetUser['full_name']) ?></div>
+                    <div class="small text-muted font-monospace">@<?= e($targetUser['username']) ?></div>
                 </div>
 
-                <hr class="my-3 opacity-25">
-
-                <!-- Profile Meta details -->
-                <div class="text-start small">
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">Last Sign-In:</span>
-                        <span class="fw-medium text-body">
+                <div class="kv-list kv-list-single">
+                    <div class="kv-item">
+                        <span class="kv-label">Email Address</span>
+                        <span class="kv-value small"><?= e($targetUser['email']) ?></span>
+                    </div>
+                    <div class="kv-item">
+                        <span class="kv-label">Last Sign-In</span>
+                        <span class="kv-value small">
                             <?= $targetUser['last_login_at'] ? e(date('M j, Y H:i', strtotime((string)$targetUser['last_login_at']))) : 'Never' ?>
                         </span>
                     </div>
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">Last IP:</span>
-                        <span class="fw-medium text-body font-monospace">
-                            <?= $targetUser['last_login_ip'] ? e($targetUser['last_login_ip']) : 'None' ?>
-                        </span>
+                    <div class="kv-item">
+                        <span class="kv-label">Last IP Address</span>
+                        <span class="kv-value font-monospace small"><?= $targetUser['last_login_ip'] ? e($targetUser['last_login_ip']) : 'None' ?></span>
                     </div>
-                    <div class="d-flex justify-content-between py-1 border-bottom">
-                        <span class="text-muted">Created:</span>
-                        <span class="fw-medium text-body">
-                            <?= e(date('M j, Y', strtotime((string)$targetUser['created_at']))) ?>
-                        </span>
+                    <div class="kv-item">
+                        <span class="kv-label">Account Created</span>
+                        <span class="kv-value small"><?= e(date('M j, Y', strtotime((string)$targetUser['created_at']))) ?></span>
                     </div>
-                    <div class="d-flex justify-content-between py-1 align-items-center">
-                        <span class="text-muted">Linked Employee:</span>
-                        <div>
+                    <div class="kv-item pt-2 border-top">
+                        <span class="kv-label">Linked Employee</span>
+                        <div class="kv-value">
                             <?php if ($linkedEmployee): ?>
                                 <a href="<?= e(url('modules/employees/view.php?id=' . (int)$linkedEmployee['id'])) ?>" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none">
                                     <i class="bi bi-person-badge me-1"></i> <?= e($linkedEmployee['employee_code']) ?>
@@ -457,39 +493,13 @@ require __DIR__ . '/../../includes/header.php';
                         </div>
                     </div>
                 </div>
-
-                <!-- Permission-Gated Action Buttons -->
-                <div class="mt-4 d-grid gap-2">
-                    <?php if ($canManageUsers): ?>
-                        <a class="btn btn-outline-primary btn-sm" href="<?= e(url('modules/users/form.php?id=' . $id)) ?>">
-                            <i class="bi bi-pencil me-1"></i> Edit User Info
-                        </a>
-                    <?php endif; ?>
-
-                    <?php if (($canManageUsers || $isSelf)): ?>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#resetPasswordModal">
-                            <i class="bi bi-key me-1"></i> Reset Password
-                        </button>
-                    <?php endif; ?>
-
-                    <?php if ($canManageUsers && !$isSelf): ?>
-                        <form method="post" data-confirm="Are you sure you want to <?= (int)$targetUser['is_active'] === 1 ? 'deactivate' : 'activate' ?> user '<?= e($targetUser['full_name']) ?>'?" data-confirm-type="<?= (int)$targetUser['is_active'] === 1 ? 'danger' : 'success' ?>">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="toggle_status">
-                            <button type="submit" class="btn btn-outline-<?= (int)$targetUser['is_active'] === 1 ? 'danger' : 'success' ?> btn-sm w-100">
-                                <i class="bi bi-<?= (int)$targetUser['is_active'] === 1 ? 'slash-circle' : 'check-circle' ?> me-1"></i>
-                                <?= (int)$targetUser['is_active'] === 1 ? 'Deactivate Account' : 'Activate Account' ?>
-                            </button>
-                        </form>
-                    <?php endif; ?>
-                </div>
             </div>
         </div>
     </div>
 
     <!-- RIGHT COLUMN: Tabs (Roles & Companies, Permissions, Activity) (8-9 cols) -->
     <div class="col-lg-8 col-xl-9">
-        <div class="card border-0 shadow-sm">
+        <div class="detail-card">
             <div class="card-header bg-body p-0 border-bottom">
                 <ul class="nav nav-tabs nav-tabs-scroll card-header-tabs px-3 pt-2 mb-0" id="userTabs" role="tablist">
                     <li class="nav-item" role="presentation">
@@ -873,7 +883,7 @@ require __DIR__ . '/../../includes/header.php';
                                     </td>
                                     <td>
                                         <?php if (!empty($log['company_code'])): ?>
-                                            <span class="badge text-bg-light border"><?= e($log['company_code']) ?></span>
+                                            <span class="badge bg-body-secondary text-body border"><?= e($log['company_code']) ?></span>
                                         <?php else: ?>
                                             <span class="text-muted small">&mdash;</span>
                                         <?php endif; ?>
@@ -889,7 +899,7 @@ require __DIR__ . '/../../includes/header.php';
                                             <div class="d-flex flex-wrap gap-1">
                                                 <?php foreach ($detailArr as $k => $v): ?>
                                                     <?php if (is_scalar($v)): ?>
-                                                        <span class="badge bg-light text-dark border"><?= e((string)$k) ?>: <?= e((string)$v) ?></span>
+                                                        <span class="badge bg-body-secondary text-body border"><?= e((string)$k) ?>: <?= e((string)$v) ?></span>
                                                     <?php endif; ?>
                                                 <?php endforeach; ?>
                                             </div>

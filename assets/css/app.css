@@ -618,6 +618,7 @@ button.sidebar-nav-parent {
 /* 36px Icon Buttons (Theme toggle & Notification slot) */
 .theme-toggle-btn,
 .topbar-icon-btn {
+    position: relative;
     width: 36px;
     height: 36px;
     border-radius: var(--radius-control);
@@ -698,7 +699,7 @@ button.sidebar-nav-parent {
         gap: 6px;
     }
     .topbar-right {
-        gap: 6px;
+        gap: 8px;
     }
     .company-switcher-mobile-btn {
         display: flex !important;
@@ -800,4 +801,22 @@ textarea:-webkit-autofill {
     -webkit-text-fill-color: var(--text-primary) !important;
     transition: background-color 5000s ease-in-out 0s;
 }
+
+/* ============================================================
+   11. DOUBLE-CLICK & DOUBLE-TAP ROW NAVIGATION
+   ============================================================ */
+.clickable-row, [data-href] {
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+.clickable-row:hover > td, [data-href]:hover > td {
+    background-color: var(--bs-table-hover-bg);
+}
+.clickable-row.row-activating > td, [data-href].row-activating > td {
+    background-color: var(--bs-primary-bg-subtle, rgba(13, 110, 253, 0.15)) !important;
+}
+.clickable-row button, .clickable-row select, .clickable-row input, .clickable-row .btn, .clickable-row .action-col {
+    cursor: auto;
+}
+
 

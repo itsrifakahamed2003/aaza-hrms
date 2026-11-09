@@ -272,8 +272,8 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <!-- Page Header Pattern -->
-<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div>
+<div class="page-header mb-4">
+    <div class="page-header-title-block">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb breadcrumb-clean mb-1">
                 <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
@@ -281,12 +281,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 <li class="breadcrumb-item active" aria-current="page">Public Holidays</li>
             </ol>
         </nav>
-        <h1 class="page-header-title h3 mb-0">Public Holidays Management</h1>
+        <h1 class="page-header-title mb-0">Public Holidays Management</h1>
         <p class="page-header-desc text-muted small mb-0">
             Define company and group-wide non-working holidays. Active holidays are automatically excluded from leave deduction and working day counts.
         </p>
     </div>
-    <div class="page-header-actions d-flex gap-2">
+    <div class="page-header-actions page-actions">
         <a href="<?= e(url('modules/leave/types.php')) ?>" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-tags me-1"></i> Leave Types
         </a>
@@ -387,7 +387,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0 fs-6 fw-bold">Scheduled Public Holidays (<?= $selectedYear ?>)</h5>
-        <span class="badge text-bg-light border text-secondary"><?= count($holidaysList) ?> entries</span>
+        <span class="badge bg-body-secondary text-body border"><?= count($holidaysList) ?> entries</span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -398,7 +398,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <th class="py-2">Holiday Name</th>
                     <th class="py-2">Scope / Entity</th>
                     <th class="py-2 text-center" style="width: 100px;">Status</th>
-                    <th class="pe-3 py-2 text-end" style="width: 160px;">Actions</th>
+                    <th class="pe-3 py-2 text-end action-col">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -422,7 +422,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <?= format_date($hDate) ?>
                             </td>
                             <td>
-                                <span class="badge text-bg-light border text-secondary fw-normal"><?= $dayName ?></span>
+                                <span class="badge bg-body-secondary text-body border fw-normal"><?= $dayName ?></span>
                             </td>
                             <td class="fw-semibold text-body">
                                 <?= e($h['name']) ?>
@@ -445,10 +445,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <span class="badge bg-secondary-subtle text-secondary border">Inactive</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="pe-3 text-end">
-                                <div class="btn-group btn-group-sm">
-                                    <!-- Edit Trigger -->
-                                    <button type="button" class="btn btn-outline-secondary"
+                            <td class="pe-3 text-end action-col">
+                                <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5"
                                             title="Edit Holiday"
                                             onclick="openEditModal(<?= htmlspecialchars(json_encode([
                                                 'id'           => (int)$h['id'],
@@ -457,33 +456,26 @@ require_once __DIR__ . '/../../includes/header.php';
                                                 'company_id'   => $h['company_id'] !== null ? (int)$h['company_id'] : '',
                                                 'is_active'    => (int)$h['is_active'],
                                             ]), ENT_QUOTES, 'UTF-8') ?>)">
-                                        <i class="bi bi-pencil"></i>
+                                        <i class="bi bi-pencil me-1"></i>Edit
                                     </button>
-
-                                    <!-- Toggle Active/Inactive Form -->
-                                    <form method="post" action="<?= e(url('modules/leave/holidays.php')) ?>" class="d-inline m-0">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="action" value="toggle">
-                                        <input type="hidden" name="id" value="<?= (int)$h['id'] ?>">
-                                        <button type="submit" class="btn btn-outline-secondary"
-                                                title="<?= $isAct ? 'Deactivate (stop excluding from leave)' : 'Activate (exclude from leave)' ?>">
-                                            <i class="bi <?= $isAct ? 'bi-pause-circle' : 'bi-play-circle text-success' ?>"></i>
-                                        </button>
-                                    </form>
-
-                                    <!-- Delete Button (Only inactive can be deleted) -->
-                                    <?php if (!$isAct): ?>
-                                        <button type="button" class="btn btn-outline-danger"
-                                                title="Delete Inactive Holiday"
-                                                onclick="confirmDeleteHoliday(<?= (int)$h['id'] ?>, '<?= e(addslashes($h['name'])) ?>')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        <button type="button" class="btn btn-outline-secondary disabled opacity-50"
-                                                title="Active holidays cannot be deleted. Deactivate first." disabled>
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    <?php endif; ?>
+                                    <?= action_menu([
+                                        [
+                                            'type'         => 'post',
+                                            'label'        => $isAct ? 'Deactivate' : 'Activate',
+                                            'url'          => 'modules/leave/holidays.php',
+                                            'icon'         => $isAct ? 'bi-pause-circle' : 'bi-play-circle',
+                                            'params'       => ['action' => 'toggle', 'id' => (int)$h['id']],
+                                            'danger'       => (bool)$isAct,
+                                        ],
+                                        [
+                                            'type'       => 'button',
+                                            'label'      => 'Delete Holiday',
+                                            'icon'       => 'bi-trash',
+                                            'onclick'    => "confirmDeleteHoliday(" . (int)$h['id'] . ", '" . e(addslashes($h['name'])) . "')",
+                                            'danger'     => true,
+                                            'permission' => !(bool)$isAct,
+                                        ],
+                                    ]) ?>
                                 </div>
                             </td>
                         </tr>

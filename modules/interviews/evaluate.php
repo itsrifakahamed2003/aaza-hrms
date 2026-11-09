@@ -278,14 +278,24 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container-fluid py-4" style="max-width: 820px;">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-1">
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/index.php')) ?>">Interviews</a></li>
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/view.php?id=' . $interviewId)) ?>">Round <?= (int)$interview['round_no'] ?></a></li>
-            <li class="breadcrumb-item active" aria-current="page">Evaluate</li>
-        </ol>
-    </nav>
+    <!-- Page Header -->
+    <div class="page-header mb-3">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/index.php')) ?>">Interviews</a></li>
+                    <li class="breadcrumb-item"><a href="<?= e(url('modules/interviews/view.php?id=' . $interviewId)) ?>">Round <?= (int)$interview['round_no'] ?></a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Evaluate</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title h4 mb-0">Submit Interview Evaluation</h1>
+        </div>
+        <div class="page-actions">
+            <a href="<?= e(url('modules/interviews/view.php?id=' . $interviewId)) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Interview
+            </a>
+        </div>
+    </div>
 
     <!-- Header Card -->
     <div class="card border-0 shadow-sm mb-4">

@@ -58,6 +58,7 @@ $excludeDirs = [
     '.gemini',
     'dist',
     'temp_test_installer',
+    'screenshots',
 ];
 
 // Patterns or paths to exclude

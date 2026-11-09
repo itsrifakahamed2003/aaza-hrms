@@ -107,24 +107,22 @@ require_once ROOT_PATH . '/includes/header.php';
 
 <div class="container-fluid px-3 px-md-4 py-4">
     <!-- Breadcrumb & Header -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb small">
-            <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/system/health.php')) ?>">System Health</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Demo Data Manager</li>
-        </ol>
-    </nav>
-
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
-        <div>
-            <h1 class="h3 fw-bold mb-1 text-body">
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+        <div class="page-header-title-block">
+            <nav aria-label="breadcrumb" class="mb-1">
+                <ol class="breadcrumb small mb-0">
+                    <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Demo Data Manager</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title h3 fw-bold mb-1 text-body">
                 <i class="bi bi-database-gear me-2 text-primary"></i>Demo Data Manager
             </h1>
             <p class="text-muted small mb-0">Load or purge 100% fake demonstration datasets for feature testing, evaluators, and system tours.</p>
         </div>
-        <div>
-            <a href="<?= e(url('modules/system/health.php')) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i> Back to System Health
+        <div class="page-actions">
+            <a href="<?= e(url('public/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
             </a>
         </div>
     </div>
@@ -155,10 +153,10 @@ require_once ROOT_PATH . '/includes/header.php';
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div>
                             <span class="badge bg-warning text-dark me-2">Save Credentials</span>
-                            <span class="small fw-semibold text-dark">Demo User Accounts Password:</span>
-                            <code class="fs-6 fw-bold user-select-all text-dark ms-2 bg-white px-2 py-1 rounded border"><?= e($actionResult['password']) ?></code>
+                            <span class="small fw-semibold text-body">Demo User Accounts Password:</span>
+                            <code class="fs-6 fw-bold user-select-all text-body ms-2 bg-body px-2 py-1 rounded border"><?= e($actionResult['password']) ?></code>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-dark" onclick="navigator.clipboard.writeText('<?= e($actionResult['password']) ?>'); alert('Password copied to clipboard!');">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('<?= e($actionResult['password']) ?>'); alert('Password copied to clipboard!');">
                             <i class="bi bi-clipboard me-1"></i> Copy Password
                         </button>
                     </div>
@@ -170,7 +168,7 @@ require_once ROOT_PATH . '/includes/header.php';
                 <!-- Demo Accounts Table -->
                 <div class="table-responsive mb-4">
                     <table class="table table-sm table-bordered align-middle small mb-0">
-                        <thead class="table-light">
+                        <thead class="table-active">
                             <tr>
                                 <th>Role Perspective</th>
                                 <th>Username</th>

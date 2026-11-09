@@ -150,96 +150,115 @@ if (!in_array($currentTab, $allowedTabs, true)) {
 $pageTitle = $emp['first_name'] . ' ' . $emp['last_name'] . ' (' . $emp['employee_code'] . ')';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item"><a href="<?= e(url('modules/employees/index.php')) ?>">Employees</a></li>
-            <li class="breadcrumb-item active" aria-current="page"><?= e($emp['employee_code']) ?></li>
-        </ol>
-    </nav>
-    <div class="d-flex gap-2">
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="<?= e(url('modules/employees/index.php')) ?>">Employees</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><?= e($emp['employee_code']) ?></li>
+    </ol>
+</nav>
+
+<!-- Detail Header -->
+<div class="detail-header">
+    <div class="detail-header-main">
+        <div class="detail-header-title-row">
+            <h1 class="detail-header-title"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></h1>
+            <span class="badge text-bg-dark font-monospace"><?= e($emp['employee_code']) ?></span>
+            <?= employee_status_badge((string)$emp['employment_status']) ?>
+        </div>
+        <p class="detail-header-subtitle">
+            <span class="badge bg-body-secondary text-body border font-monospace"><?= e($emp['company_code']) ?></span> <?= e($emp['company_name']) ?>
+            <?php if (!empty($emp['department_name'])): ?> &bull; <?= e($emp['department_name']) ?><?php endif; ?>
+            <?php if (!empty($emp['designation_title'])): ?> &bull; <?= e($emp['designation_title']) ?><?php endif; ?>
+            &bull; Joined <?= e(date('M d, Y', strtotime((string)$emp['joining_date']))) ?>
+        </p>
+    </div>
+
+    <div class="detail-header-actions">
+        <!-- ONE Primary Button -->
         <?php if ($canEdit): ?>
-            <a class="btn btn-sm btn-outline-primary" href="<?= e(url('modules/employees/form.php?id=' . $id)) ?>">
-                Edit Details
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#statusModal">
-                Change Status
-            </button>
-        <?php endif; ?>
-        <?php if ($canTransfer && $emp['employment_status'] === 'active'): ?>
-            <a class="btn btn-sm btn-outline-info" href="<?= e(url('modules/employees/transfer.php?id=' . $id)) ?>">
-                Transfer Company
+            <a class="btn btn-sm btn-primary" href="<?= e(url('modules/employees/form.php?id=' . $id)) ?>">
+                <i class="bi bi-pencil me-1"></i> Edit Details
             </a>
         <?php endif; ?>
-        <?php if ($canUploadDocs): ?>
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
-                Upload Document
-            </button>
-        <?php endif; ?>
-        <?php if (is_group_admin() && user_can('employee.delete')): ?>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteEmployee(<?= $id ?>, '<?= e(addslashes($emp['first_name'] . ' ' . $emp['last_name'])) ?>')">
-                <i class="bi bi-trash me-1"></i> Delete
-            </button>
-            <form method="post" action="<?= e(url('modules/employees/delete.php')) ?>" id="deleteEmployeeForm" class="d-none">
-                <?= csrf_field() ?>
-                <input type="hidden" name="id" value="<?= $id ?>">
-            </form>
-            <script>
-            function confirmDeleteEmployee(id, name) {
-                if (typeof showConfirmModal === 'function') {
-                    showConfirmModal({
-                        title: 'Delete Employee Record',
-                        message: 'Are you sure you want to permanently delete employee "' + name + '"? Only terminated, resigned, or retired employees who are not active supervisors or managers can be deleted. This action cannot be undone.',
-                        confirmText: 'Delete Employee',
-                        variant: 'danger',
-                        onConfirm: function() {
-                            document.getElementById('deleteEmployeeForm').submit();
-                        }
-                    });
-                } else if (confirm('Are you sure you want to permanently delete employee "' + name + '"?')) {
+
+        <!-- ONE "More" 3-dot menu for secondary actions -->
+        <?php
+        $empMore = [];
+        if ($canEdit) {
+            $empMore[] = [
+                'type' => 'button',
+                'icon' => 'bi-arrow-repeat',
+                'label' => 'Change Status',
+                'modal' => '#statusModal',
+            ];
+        }
+        if ($canTransfer && $emp['employment_status'] === 'active') {
+            $empMore[] = [
+                'type' => 'link',
+                'icon' => 'bi-arrow-left-right',
+                'label' => 'Transfer Company',
+                'url' => 'modules/employees/transfer.php?id=' . $id,
+            ];
+        }
+        if ($canUploadDocs) {
+            $empMore[] = [
+                'type' => 'button',
+                'icon' => 'bi-upload',
+                'label' => 'Upload Document',
+                'modal' => '#uploadDocModal',
+            ];
+        }
+        $empMore[] = [
+            'type' => 'link',
+            'icon' => 'bi-arrow-left',
+            'label' => 'Back to Employees',
+            'url' => 'modules/employees/index.php',
+        ];
+        if (is_group_admin() && user_can('employee.delete')) {
+            $empMore[] = [
+                'type' => 'button',
+                'icon' => 'bi-trash',
+                'label' => 'Delete Employee',
+                'onclick' => 'confirmDeleteEmployee(' . $id . ', \'' . e(addslashes($emp['first_name'] . ' ' . $emp['last_name'])) . '\')',
+                'danger' => true,
+            ];
+        }
+        echo action_menu($empMore, [
+            'btn_class' => 'btn btn-outline-secondary btn-sm action-menu-btn',
+            'aria_label' => 'More employee actions',
+        ]);
+        ?>
+    </div>
+</div>
+
+<?php if (is_group_admin() && user_can('employee.delete')): ?>
+    <form method="post" action="<?= e(url('modules/employees/delete.php')) ?>" id="deleteEmployeeForm" class="d-none">
+        <?= csrf_field() ?>
+        <input type="hidden" name="id" value="<?= $id ?>">
+    </form>
+    <script>
+    function confirmDeleteEmployee(id, name) {
+        if (typeof showConfirmModal === 'function') {
+            showConfirmModal({
+                title: 'Delete Employee Record',
+                message: 'Are you sure you want to permanently delete employee "' + name + '"? Only terminated, resigned, or retired employees who are not active supervisors or managers can be deleted. This action cannot be undone.',
+                confirmText: 'Delete Employee',
+                variant: 'danger',
+                onConfirm: function() {
                     document.getElementById('deleteEmployeeForm').submit();
                 }
-            }
-            </script>
-        <?php endif; ?>
-    </div>
-</div>
-
-<!-- Employee Header Card -->
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <div class="d-flex align-items-center gap-3">
-                <div class="bg-primary-subtle text-primary fw-bold rounded-circle d-flex align-items-center justify-content-center"
-                     style="width: 58px; height: 58px; font-size: 1.4rem;">
-                    <?= e(strtoupper(substr($emp['first_name'], 0, 1) . substr($emp['last_name'], 0, 1))) ?>
-                </div>
-                <div>
-                    <h1 class="h4 mb-1"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></h1>
-                    <div class="d-flex flex-wrap align-items-center gap-2 text-muted small">
-                        <span class="badge text-bg-dark font-monospace"><?= e($emp['employee_code']) ?></span>
-                        <span class="badge bg-body-secondary text-body border"><?= e($emp['company_code']) ?> - <?= e($emp['company_name']) ?></span>
-                        <?php if (!empty($emp['department_name'])): ?>
-                            <span>&bull; <?= e($emp['department_name']) ?></span>
-                        <?php endif; ?>
-                        <?php if (!empty($emp['designation_title'])): ?>
-                            <span>&bull; <?= e($emp['designation_title']) ?></span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            <div class="text-end">
-                <div class="mb-1"><?= employee_status_badge((string)$emp['employment_status']) ?></div>
-                <div class="small text-muted">
-                    Joined <?= e(date('M d, Y', strtotime((string)$emp['joining_date']))) ?>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+            });
+        } else if (confirm('Are you sure you want to permanently delete employee "' + name + '"?')) {
+            document.getElementById('deleteEmployeeForm').submit();
+        }
+    }
+    </script>
+<?php endif; ?>
 
 <!-- Tab Navigation -->
-<ul class="nav nav-tabs mb-4" id="employeeTabs" role="tablist">
+<ul class="nav nav-tabs mb-3" id="employeeTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <a class="nav-link<?= $currentTab === 'details' ? ' active' : '' ?>"
            href="<?= e(url('modules/employees/view.php?id=' . $id . '&tab=details')) ?>">
@@ -274,75 +293,80 @@ require __DIR__ . '/../../includes/header.php';
     <?php endif; ?>
 </ul>
 
-<!-- Tab 1: Profile & Job Details -->
+<!-- Tab 1: Profile & Job Details (.kv-list) -->
 <?php if ($currentTab === 'details'): ?>
-    <div class="row g-4">
+    <div class="row g-3 align-items-start">
         <div class="col-12 col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-body fw-semibold">Personal Information</div>
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Personal Information</span>
+                </div>
                 <div class="card-body">
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr>
-                            <th class="text-muted ps-0" style="width:40%">Full Name:</th>
-                            <td class="fw-semibold"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Email:</th>
-                            <td>
+                    <div class="kv-list kv-list-single">
+                        <div class="kv-item">
+                            <span class="kv-label">Full Name</span>
+                            <span class="kv-value fw-semibold"><?= e($emp['first_name'] . ' ' . $emp['last_name']) ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Email</span>
+                            <span class="kv-value">
                                 <?php if (!empty($emp['email'])): ?>
                                     <a href="mailto:<?= e($emp['email']) ?>"><?= e($emp['email']) ?></a>
                                 <?php else: ?>
-                                    <span class="text-muted">Not specified</span>
+                                    —
                                 <?php endif; ?>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Phone:</th>
-                            <td><?= e($emp['phone'] ?? '—') ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">NIC / Passport:</th>
-                            <td><?= e($emp['nic_passport'] ?? '—') ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Date of Birth:</th>
-                            <td>
-                                <?= !empty($emp['dob']) ? e(date('M d, Y', strtotime((string)$emp['dob']))) : '—' ?>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Gender:</th>
-                            <td><?= e(ucfirst($emp['gender'] ?? '—')) ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Residential Address:</th>
-                            <td><?= nl2br(e($emp['address'] ?? '—')) ?></td>
-                        </tr>
-                    </table>
+                            </span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Phone</span>
+                            <span class="kv-value"><?= e($emp['phone'] ?? '—') ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">NIC / Passport</span>
+                            <span class="kv-value font-monospace"><?= e($emp['nic_passport'] ?? '—') ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Date of Birth</span>
+                            <span class="kv-value"><?= !empty($emp['dob']) ? e(date('M d, Y', strtotime((string)$emp['dob']))) : '—' ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Gender</span>
+                            <span class="kv-value"><?= !empty($emp['gender']) ? e(ucfirst((string)$emp['gender'])) : '—' ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Residential Address</span>
+                            <span class="kv-value small"><?= !empty($emp['address']) ? nl2br(e($emp['address'])) : '—' ?></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-12 col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-body fw-semibold">Employment &amp; Organization</div>
+            <div class="detail-card">
+                <div class="card-header">
+                    <span>Employment &amp; Organization</span>
+                </div>
                 <div class="card-body">
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr>
-                            <th class="text-muted ps-0" style="width:40%">Company:</th>
-                            <td><span class="badge bg-body-secondary text-body border"><?= e($emp['company_code']) ?></span> <?= e($emp['company_name']) ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Department:</th>
-                            <td><?= e($emp['department_name'] ?? '—') ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Designation:</th>
-                            <td><?= e($emp['designation_title'] ?? '—') ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Reporting Manager:</th>
-                            <td>
+                    <div class="kv-list kv-list-single">
+                        <div class="kv-item">
+                            <span class="kv-label">Company</span>
+                            <div class="kv-value d-flex align-items-center gap-2">
+                                <span class="badge bg-body-secondary text-body border font-monospace"><?= e($emp['company_code']) ?></span>
+                                <span><?= e($emp['company_name']) ?></span>
+                            </div>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Department</span>
+                            <span class="kv-value"><?= e($emp['department_name'] ?? '—') ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Designation</span>
+                            <span class="kv-value"><?= e($emp['designation_title'] ?? '—') ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Reporting Manager</span>
+                            <span class="kv-value">
                                 <?php if (!empty($emp['reporting_manager_id'])): ?>
                                     <a href="<?= e(url('modules/employees/view.php?id=' . (int)$emp['reporting_manager_id'])) ?>">
                                         <?= e($emp['manager_first'] . ' ' . $emp['manager_last']) ?>
@@ -351,26 +375,26 @@ require __DIR__ . '/../../includes/header.php';
                                 <?php else: ?>
                                     <span class="text-muted">None</span>
                                 <?php endif; ?>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Employment Type:</th>
-                            <td><?= e($typeLabels[$emp['employment_type']] ?? $emp['employment_type']) ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Joining Date:</th>
-                            <td><?= e(date('M d, Y', strtotime((string)$emp['joining_date']))) ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Employment Status:</th>
-                            <td><?= employee_status_badge((string)$emp['employment_status']) ?></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted ps-0">Basic Salary:</th>
-                            <td>
+                            </span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Employment Type</span>
+                            <span class="kv-value"><?= e($typeLabels[$emp['employment_type']] ?? $emp['employment_type']) ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Joining Date</span>
+                            <span class="kv-value"><?= e(date('M d, Y', strtotime((string)$emp['joining_date']))) ?></span>
+                        </div>
+                        <div class="kv-item">
+                            <span class="kv-label">Employment Status</span>
+                            <span class="kv-value"><?= employee_status_badge((string)$emp['employment_status']) ?></span>
+                        </div>
+                        <div class="kv-item pt-2 border-top">
+                            <span class="kv-label">Basic Salary</span>
+                            <span class="kv-value">
                                 <?php if ($canSalary): ?>
                                     <?php if ($emp['basic_salary'] !== null): ?>
-                                        <span class="font-monospace fw-bold fs-6">$<?= e(number_format((float)$emp['basic_salary'], 2)) ?></span>
+                                        <span class="font-monospace fw-bold text-success fs-6">$<?= e(number_format((float)$emp['basic_salary'], 2)) ?></span>
                                     <?php else: ?>
                                         <span class="text-muted">Not configured</span>
                                     <?php endif; ?>
@@ -379,9 +403,9 @@ require __DIR__ . '/../../includes/header.php';
                                         Restricted (salary.view required)
                                     </span>
                                 <?php endif; ?>
-                            </td>
-                        </tr>
-                    </table>
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -449,7 +473,7 @@ require __DIR__ . '/../../includes/header.php';
                         </td>
                         <td>
                             <?php if (!empty($doc['is_confidential'])): ?>
-                                <span class="badge text-bg-warning text-body">Confidential</span>
+                                <span class="badge text-bg-warning">Confidential</span>
                             <?php else: ?>
                                 <span class="badge text-bg-secondary text-opacity-50">Standard</span>
                             <?php endif; ?>
@@ -513,10 +537,10 @@ require __DIR__ . '/../../includes/header.php';
                     $changeBadges = [
                         'joined'            => 'badge text-bg-success',
                         'promotion'         => 'badge text-bg-primary',
-                        'transfer_in'       => 'badge text-bg-info text-body',
+                        'transfer_in'       => 'badge text-bg-info',
                         'transfer_out'      => 'badge text-bg-secondary',
                         'department_change' => 'badge text-bg-secondary',
-                        'status_change'     => 'badge text-bg-warning text-body',
+                        'status_change'     => 'badge text-bg-warning',
                         'termination'       => 'badge text-bg-danger',
                         'resignation'       => 'badge text-bg-dark',
                     ];

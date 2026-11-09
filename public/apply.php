@@ -228,6 +228,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'app:new:' . $appId
             );
 
+            // Send "application_received" confirmation email if candidate provided email and mail is configured
+            // Ignore any failures silently and never expose mail errors to the public applicant
+            if ($email !== '' && mail_is_configured()) {
+                try {
+                    $cNameSt = $pdo->prepare('SELECT name FROM companies WHERE id = ? LIMIT 1');
+                    $cNameSt->execute([$companyId]);
+                    $compName = (string)($cNameSt->fetchColumn() ?: APP_NAME);
+                    $tplData = mail_tpl_application_received(
+                        $applicantName,
+                        (string)$vacancy['title'],
+                        $compName,
+                        $compName . ' HR'
+                    );
+                    $sendRes = mail_send($email, $tplData['subject'], $tplData['html'], $tplData['text']);
+                    $sentOk = !empty($sendRes['ok']);
+                    log_activity(
+                        $sentOk ? 'candidate.email_sent' : 'candidate.email_failed',
+                        'candidate_application',
+                        $appId,
+                        [
+                            'template' => 'application_received',
+                            'ok'       => $sentOk,
+                        ],
+                        $companyId
+                    );
+                } catch (Throwable) {
+                    // Silently ignore mail errors on public portal
+                }
+            }
+
             $successApp = [
                 'app_id'         => $appId,
                 'candidate_code' => $candidateCode,

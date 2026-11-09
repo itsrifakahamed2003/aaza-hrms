@@ -116,7 +116,7 @@ require __DIR__ . '/../includes/header.php';
                 : 'Company View &bull; Performance metrics, open requisitions, and workforce summary for your assigned company.' ?>
         </p>
     </div>
-    <div class="page-header-actions">
+    <div class="page-header-actions page-actions">
         <?php if (user_can('report.view')): ?>
             <a href="<?= e(url('modules/reports/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-bar-chart-line"></i> Reports Catalog
@@ -389,7 +389,7 @@ require __DIR__ . '/../includes/header.php';
 
     <!-- Card 7: Pending Offers (Draft + Sent) -->
     <?php if (user_can('offer.view')): ?>
-        <a href="<?= e(url('modules/offers/index.php?status=sent')) ?>" class="stat-card" title="View pending offers">
+        <a href="<?= e(url('modules/offers/index.php?status=pending')) ?>" class="stat-card" title="View pending offers">
     <?php else: ?>
         <div class="stat-card">
     <?php endif; ?>
