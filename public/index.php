@@ -97,56 +97,149 @@ if (!is_group_admin()) {
     $access = $st->fetchAll();
 }
 
+// Compute active filter chips
+$activeChips = [];
+if ($filters['company_id'] > 0) {
+    $compName = 'Company #' . $filters['company_id'];
+    foreach ($filterCompanies as $c) {
+        if ((int)$c['id'] === $filters['company_id']) {
+            $compName = $c['code'] . ' - ' . $c['name'];
+            break;
+        }
+    }
+    $remParams = $_GET;
+    $remParams['company_id'] = 0;
+    $activeChips[] = [
+        'label' => 'Company: ' . $compName,
+        'remove_url' => url('public/index.php') . (!empty($remParams) ? '?' . http_build_query($remParams) : ''),
+    ];
+}
+if ($filters['department_id'] > 0) {
+    $deptName = 'Department #' . $filters['department_id'];
+    foreach ($filterDepts as $d) {
+        if ((int)$d['id'] === $filters['department_id']) {
+            $deptName = $d['name'];
+            break;
+        }
+    }
+    $remParams = $_GET;
+    unset($remParams['department_id']);
+    $activeChips[] = [
+        'label' => 'Department: ' . $deptName,
+        'remove_url' => url('public/index.php') . (!empty($remParams) ? '?' . http_build_query($remParams) : ''),
+    ];
+}
+if ($filters['vacancy_id'] > 0) {
+    $vacName = 'Position #' . $filters['vacancy_id'];
+    foreach ($filterVacancies as $v) {
+        if ((int)$v['id'] === $filters['vacancy_id']) {
+            $vacName = $v['vacancy_code'] . ' - ' . $v['title'];
+            break;
+        }
+    }
+    $remParams = $_GET;
+    unset($remParams['vacancy_id']);
+    $activeChips[] = [
+        'label' => 'Position: ' . $vacName,
+        'remove_url' => url('public/index.php') . (!empty($remParams) ? '?' . http_build_query($remParams) : ''),
+    ];
+}
+if (!empty($filters['date_from'])) {
+    $remParams = $_GET;
+    unset($remParams['date_from']);
+    $activeChips[] = [
+        'label' => 'From: ' . $filters['date_from'],
+        'remove_url' => url('public/index.php') . (!empty($remParams) ? '?' . http_build_query($remParams) : ''),
+    ];
+}
+if (!empty($filters['date_to'])) {
+    $remParams = $_GET;
+    unset($remParams['date_to']);
+    $activeChips[] = [
+        'label' => 'To: ' . $filters['date_to'],
+        'remove_url' => url('public/index.php') . (!empty($remParams) ? '?' . http_build_query($remParams) : ''),
+    ];
+}
+
 $pageTitle = $isGroupView ? 'Group Dashboard & Analytics' : 'Company Dashboard';
 require __DIR__ . '/../includes/header.php';
 ?>
-<!-- Page Header -->
-<div class="page-header">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb breadcrumb-clean page-header-breadcrumb">
-                <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
-            </ol>
-        </nav>
-        <h1 class="page-header-title"><?= e($pageTitle) ?></h1>
-        <p class="page-header-desc">
-            <?= $isGroupView
-                ? 'Group Scope &bull; Consolidated human resource analytics, talent pipeline, and workforce statistics across group entities.'
-                : 'Company View &bull; Performance metrics, open requisitions, and workforce summary for your assigned company.' ?>
-        </p>
-    </div>
-    <div class="page-header-actions page-actions">
-        <?php if (user_can('report.view')): ?>
-            <a href="<?= e(url('modules/reports/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-bar-chart-line"></i> Reports Catalog
-            </a>
-        <?php endif; ?>
-        <?php if (user_can('employee.create')): ?>
-            <a href="<?= e(url('modules/employees/form.php')) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-person-plus"></i> Add Employee
-            </a>
-        <?php endif; ?>
-        <?php if (user_can('vacancy.manage')): ?>
-            <a href="<?= e(url('modules/vacancies/form.php')) ?>" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-lg"></i> Post Vacancy
-            </a>
-        <?php endif; ?>
-    </div>
-</div>
+<!-- Scoped Dashboard Stylesheet -->
+<link rel="stylesheet" href="<?= e(url('assets/css/dashboard.css')) ?>">
 
-<!-- Dashboard Filter Bar -->
-<div class="dashboard-filter-card">
-    <div class="d-md-none mb-2">
-        <button type="button" class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#dashboardFiltersCollapse" aria-expanded="false" aria-controls="dashboardFiltersCollapse">
-            <span><i class="bi bi-funnel me-1"></i> Filters</span>
-            <i class="bi bi-chevron-down"></i>
-        </button>
+<div class="dashboard-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-clean page-header-breadcrumb">
+                    <li class="breadcrumb-item"><a href="<?= e(url('public/index.php')) ?>">AaZa HRMS</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+                </ol>
+            </nav>
+            <h1 class="page-header-title"><?= e($pageTitle) ?></h1>
+            <p class="page-header-desc">
+                <?= $isGroupView
+                    ? 'Group Scope &bull; Consolidated human resource analytics, talent pipeline, and workforce statistics across group entities.'
+                    : 'Company View &bull; Performance metrics, open requisitions, and workforce summary for your assigned company.' ?>
+            </p>
+        </div>
+        <div class="page-header-actions page-actions">
+            <!-- Desktop secondary outline buttons -->
+            <div class="header-actions-desktop">
+                <?php if (user_can('report.view')): ?>
+                    <a href="<?= e(url('modules/reports/index.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-bar-chart-line me-1"></i> Reports Catalog
+                    </a>
+                <?php endif; ?>
+                <?php if (user_can('employee.create')): ?>
+                    <a href="<?= e(url('modules/employees/form.php')) ?>" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-person-plus me-1"></i> Add Employee
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <!-- Primary Action: Post Vacancy -->
+            <?php if (user_can('vacancy.manage')): ?>
+                <a href="<?= e(url('modules/vacancies/form.php')) ?>" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i> Post Vacancy
+                </a>
+            <?php endif; ?>
+
+            <!-- Mobile secondary actions inside action_menu() -->
+            <div class="header-actions-mobile">
+                <?php
+                $headerSecondary = [];
+                if (user_can('report.view')) {
+                    $headerSecondary[] = [
+                        'label' => 'Reports Catalog',
+                        'url'   => url('modules/reports/index.php'),
+                        'icon'  => 'bi-bar-chart-line',
+                    ];
+                }
+                if (user_can('employee.create')) {
+                    $headerSecondary[] = [
+                        'label' => 'Add Employee',
+                        'url'   => url('modules/employees/form.php'),
+                        'icon'  => 'bi-person-plus',
+                    ];
+                }
+                if (!empty($headerSecondary)) {
+                    echo action_menu($headerSecondary, [
+                        'btn_class' => 'btn-outline-secondary btn-sm',
+                        'aria_label' => 'More dashboard actions',
+                    ]);
+                }
+                ?>
+            </div>
+        </div>
     </div>
-    <div class="collapse d-md-block" id="dashboardFiltersCollapse">
-        <form method="get" action="<?= e(url('public/index.php')) ?>" class="row g-2 align-items-end">
+
+    <!-- Dashboard Filter Bar -->
+    <div class="dashboard-filter-card">
+        <form method="get" action="<?= e(url('public/index.php')) ?>" class="filter-form-compact">
             <!-- Company Filter -->
-            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+            <div class="filter-col">
                 <label class="filter-label-inline">Company</label>
                 <select name="company_id" class="form-select filter-control" onchange="this.form.submit()">
                     <?php if (count($accessibleCompanyIds) > 1): ?>
@@ -161,7 +254,7 @@ require __DIR__ . '/../includes/header.php';
             </div>
 
             <!-- Department Filter -->
-            <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6">
+            <div class="filter-col">
                 <label class="filter-label-inline">Department</label>
                 <select name="department_id" class="form-select filter-control">
                     <option value="0">All Departments</option>
@@ -174,7 +267,7 @@ require __DIR__ . '/../includes/header.php';
             </div>
 
             <!-- Job Position / Vacancy Filter -->
-            <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6">
+            <div class="filter-col">
                 <label class="filter-label-inline">Job position</label>
                 <select name="vacancy_id" class="form-select filter-control">
                     <option value="0">All Positions</option>
@@ -187,7 +280,7 @@ require __DIR__ . '/../includes/header.php';
             </div>
 
             <!-- Date From -->
-            <div class="col-xl-2 col-lg-2 col-md-3 col-sm-6">
+            <div class="filter-col-date">
                 <label class="filter-label-inline" for="dateFromFilter">
                     <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>From
                 </label>
@@ -195,306 +288,318 @@ require __DIR__ . '/../includes/header.php';
             </div>
 
             <!-- Date To -->
-            <div class="col-xl-2 col-lg-2 col-md-3 col-sm-6">
+            <div class="filter-col-date">
                 <label class="filter-label-inline" for="dateToFilter">
                     <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>To
                 </label>
                 <input type="date" id="dateToFilter" name="date_to" class="form-control filter-control" aria-label="To date" value="<?= e((string)($filters['date_to'] ?? '')) ?>">
             </div>
 
-            <!-- Action Buttons -->
-            <div class="col-xl-2 col-lg-12 col-md-6 col-sm-12 d-flex gap-2">
-                <button type="submit" class="btn btn-primary flex-grow-1" title="Apply Filters">
-                    <i class="bi bi-filter"></i> Apply
+            <!-- Action Buttons: Apply (primary) + Reset (ghost) with 8px gap -->
+            <div class="filter-col-actions">
+                <button type="submit" class="btn btn-primary btn-apply" title="Apply Filters">
+                    <i class="bi bi-filter me-1"></i> Apply
                 </button>
-                <a href="<?= e(url('public/index.php')) ?>" class="btn btn-outline-secondary" title="Reset Filters">
+                <a href="<?= e(url('public/index.php?company_id=0')) ?>" class="btn-ghost" title="Reset Filters">
                     Reset
                 </a>
             </div>
         </form>
+
+        <!-- Active Filter Chips -->
+        <?php if (!empty($activeChips)): ?>
+            <div class="active-filter-chips">
+                <span class="active-filter-title"><i class="bi bi-funnel-fill me-1"></i>Active filters:</span>
+                <?php foreach ($activeChips as $chip): ?>
+                    <span class="filter-chip">
+                        <?= e($chip['label']) ?>
+                        <a href="<?= e($chip['remove_url']) ?>" class="filter-chip-remove" aria-label="Remove filter" title="Remove filter">&times;</a>
+                    </span>
+                <?php endforeach; ?>
+                <a href="<?= e(url('public/index.php?company_id=0')) ?>" class="btn-clear-all" title="Clear all filters">Clear all</a>
+            </div>
+        <?php endif; ?>
     </div>
-</div>
 
-<?php if (is_group_admin() && APP_ENV === 'production' && file_exists(__DIR__ . '/setup.php')): ?>
-    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-        <i class="bi bi-shield-slash fs-3 me-3 text-danger"></i>
-        <div>
-            <h5 class="alert-heading fw-bold mb-1 fs-6">CRITICAL SECURITY WARNING: setup.php Exists in Production</h5>
-            <p class="mb-0 small">The initial installer file <code>public/setup.php</code> is present on the server while <code>APP_ENV</code> is set to <strong>production</strong>. You must delete or remove <code>public/setup.php</code> immediately to prevent unauthorized administrative takeover.</p>
+    <?php if (is_group_admin() && APP_ENV === 'production' && file_exists(__DIR__ . '/setup.php')): ?>
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-shield-slash fs-3 me-3 text-danger"></i>
+            <div>
+                <h5 class="alert-heading fw-bold mb-1 fs-6">CRITICAL SECURITY WARNING: setup.php Exists in Production</h5>
+                <p class="mb-0 small">The initial installer file <code>public/setup.php</code> is present on the server while <code>APP_ENV</code> is set to <strong>production</strong>. You must delete or remove <code>public/setup.php</code> immediately to prevent unauthorized administrative takeover.</p>
+            </div>
         </div>
+    <?php endif; ?>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 1: 8 KPI STAT CARDS (4 DESKTOP / 2 MOBILE, TINTED ICONS) -->
+    <!-- ========================================================================= -->
+    <div class="kpi-grid">
+        <!-- Card 1: Total Companies (bi-building) -->
+        <?php if (is_group_admin()): ?>
+            <a href="<?= e(url('modules/companies/index.php')) ?>" class="kpi-card" title="View active companies">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">Active companies</div>
+                    <div class="kpi-number"><?= (int)$cardStats['total_companies'] ?></div>
+                    <div class="kpi-sublabel">Operating units</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-building"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (is_group_admin()): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php else: ?>
+                    <span class="text-muted small">AaZa Group</span>
+                <?php endif; ?>
+            </div>
+        <?= is_group_admin() ? '</a>' : '</div>' ?>
+
+        <!-- Card 2: Total Active Employees (bi-people) -->
+        <?php if (user_can('employee.view')): ?>
+            <a href="<?= e(url('modules/employees/index.php?status=active')) ?>" class="kpi-card" title="View active employees">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">Active employees</div>
+                    <?php if ($cardStats['active_employees'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['active_employees'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Regular &amp; contract staff</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-people"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('employee.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= user_can('employee.view') ? '</a>' : '</div>' ?>
+
+        <!-- Card 3: Open Vacancies (bi-briefcase) -->
+        <?php if (user_can('vacancy.view')): ?>
+            <a href="<?= e(url('modules/vacancies/index.php?status=open')) ?>" class="kpi-card" title="View open vacancies">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">Open vacancies</div>
+                    <?php if ($cardStats['open_vacancies'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['open_vacancies'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Actively recruiting</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-briefcase"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('vacancy.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= user_can('vacancy.view') ? '</a>' : '</div>' ?>
+
+        <!-- Card 4: Total Candidates (bi-person-lines-fill) -->
+        <?php if (user_can('candidate.view')): ?>
+            <a href="<?= e(url('modules/candidates/index.php')) ?>" class="kpi-card" title="View candidates">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">Total candidates</div>
+                    <?php if ($cardStats['total_candidates'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['total_candidates'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Talent repository</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-person-lines-fill"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('candidate.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= user_can('candidate.view') ? '</a>' : '</div>' ?>
+
+        <!-- Card 5: Shortlisted / Selected for Interview (bi-star) -->
+        <?php if (user_can('candidate.view') && user_can('report.view')): ?>
+            <a href="<?= e(url('modules/reports/candidates_selected.php')) ?>" class="kpi-card" title="View shortlisted candidates">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">Shortlisted candidates</div>
+                    <?php if ($cardStats['shortlisted_selected'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['shortlisted_selected'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Interview pipeline</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-star"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('candidate.view') && user_can('report.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= (user_can('candidate.view') && user_can('report.view')) ? '</a>' : '</div>' ?>
+
+        <!-- Card 6: Upcoming Interviews (Next 7 Days, bi-calendar-event) -->
+        <?php if (user_can('interview.view')): ?>
+            <a href="<?= e(url('modules/interviews/index.php')) ?>" class="kpi-card" title="View upcoming interviews">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">Upcoming interviews</div>
+                    <?php if ($cardStats['upcoming_interviews'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['upcoming_interviews'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Next 7 calendar days</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-calendar-event"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('interview.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= user_can('interview.view') ? '</a>' : '</div>' ?>
+
+        <!-- Card 7: Pending Offers (Draft + Sent, bi-envelope-paper) -->
+        <?php if (user_can('offer.view')): ?>
+            <a href="<?= e(url('modules/offers/index.php?status=pending')) ?>" class="kpi-card" title="View pending offers">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">
+                        Pending offers
+                        <?php if (!empty($cardStats['pending_offers']) && (int)$cardStats['pending_offers'] > 0): ?>
+                            <span class="status-warning-dot" title="Requires attention"></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($cardStats['pending_offers'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['pending_offers'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Draft &amp; sent offers</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-envelope-paper"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('offer.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= user_can('offer.view') ? '</a>' : '</div>' ?>
+
+        <!-- Card 8: Pending Leave Requests (bi-calendar-heart) -->
+        <?php if (user_can('leave.approve') || user_can('leave.view')): ?>
+            <a href="<?= e(url('modules/leave/index.php?status=pending')) ?>" class="kpi-card" title="View pending leave requests">
+        <?php else: ?>
+            <div class="kpi-card">
+        <?php endif; ?>
+            <div class="kpi-top">
+                <div class="kpi-content">
+                    <div class="kpi-label">
+                        Pending leaves
+                        <?php if (!empty($cardStats['pending_leaves']) && (int)$cardStats['pending_leaves'] > 0): ?>
+                            <span class="status-warning-dot" title="Requires attention"></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($cardStats['pending_leaves'] !== null): ?>
+                        <div class="kpi-number"><?= (int)$cardStats['pending_leaves'] ?></div>
+                    <?php else: ?>
+                        <div class="fs-6 fw-bold text-muted my-2"><i class="bi bi-lock me-1"></i>Restricted</div>
+                    <?php endif; ?>
+                    <div class="kpi-sublabel">Awaiting decision</div>
+                </div>
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-calendar-heart"></i>
+                </div>
+            </div>
+            <div class="kpi-bottom">
+                <?php if (user_can('leave.approve') || user_can('leave.view')): ?>
+                    <span class="kpi-view-indicator">View <i class="bi bi-arrow-right-short"></i></span>
+                <?php endif; ?>
+            </div>
+        <?= (user_can('leave.approve') || user_can('leave.view')) ? '</a>' : '</div>' ?>
     </div>
-<?php endif; ?>
 
-<!-- 8 KPI STAT CARDS GRID -->
-<div class="stat-cards-grid">
-    <!-- Card 1: Total Companies -->
-    <?php if (is_group_admin()): ?>
-        <a href="<?= e(url('modules/companies/index.php')) ?>" class="stat-card" title="View active companies">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">Active companies</div>
-                <div class="stat-number"><?= (int)$cardStats['total_companies'] ?></div>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-buildings"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Operating units</span>
-            <?php if (is_group_admin()): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php else: ?>
-                <span>AaZa Group</span>
-            <?php endif; ?>
-        </div>
-    <?= is_group_admin() ? '</a>' : '</div>' ?>
-
-    <!-- Card 2: Total Active Employees -->
-    <?php if (user_can('employee.view')): ?>
-        <a href="<?= e(url('modules/employees/index.php?status=active')) ?>" class="stat-card" title="View active employees">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">Active employees</div>
-                <?php if ($cardStats['active_employees'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['active_employees'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-people"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Regular &amp; contract staff</span>
-            <?php if (user_can('employee.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= user_can('employee.view') ? '</a>' : '</div>' ?>
-
-    <!-- Card 3: Open Vacancies -->
-    <?php if (user_can('vacancy.view')): ?>
-        <a href="<?= e(url('modules/vacancies/index.php?status=open')) ?>" class="stat-card" title="View open vacancies">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">Open vacancies</div>
-                <?php if ($cardStats['open_vacancies'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['open_vacancies'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-briefcase"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Actively recruiting</span>
-            <?php if (user_can('vacancy.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= user_can('vacancy.view') ? '</a>' : '</div>' ?>
-
-    <!-- Card 4: Total Candidates -->
-    <?php if (user_can('candidate.view')): ?>
-        <a href="<?= e(url('modules/candidates/index.php')) ?>" class="stat-card" title="View candidates">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">Total candidates</div>
-                <?php if ($cardStats['total_candidates'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['total_candidates'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-person-badge"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Talent repository</span>
-            <?php if (user_can('candidate.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= user_can('candidate.view') ? '</a>' : '</div>' ?>
-
-    <!-- Card 5: Shortlisted / Selected for Interview -->
-    <?php if (user_can('candidate.view') && user_can('report.view')): ?>
-        <a href="<?= e(url('modules/reports/candidates_selected.php')) ?>" class="stat-card" title="View shortlisted candidates">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">Shortlisted candidates</div>
-                <?php if ($cardStats['shortlisted_selected'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['shortlisted_selected'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-person-check"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Interview pipeline</span>
-            <?php if (user_can('candidate.view') && user_can('report.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= (user_can('candidate.view') && user_can('report.view')) ? '</a>' : '</div>' ?>
-
-    <!-- Card 6: Upcoming Interviews (Next 7 Days) -->
-    <?php if (user_can('interview.view')): ?>
-        <a href="<?= e(url('modules/interviews/index.php')) ?>" class="stat-card" title="View upcoming interviews">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">Upcoming interviews</div>
-                <?php if ($cardStats['upcoming_interviews'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['upcoming_interviews'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-calendar-event"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Next 7 calendar days</span>
-            <?php if (user_can('interview.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= user_can('interview.view') ? '</a>' : '</div>' ?>
-
-    <!-- Card 7: Pending Offers (Draft + Sent) -->
-    <?php if (user_can('offer.view')): ?>
-        <a href="<?= e(url('modules/offers/index.php?status=pending')) ?>" class="stat-card" title="View pending offers">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">
-                    Pending offers
-                    <?php if (!empty($cardStats['pending_offers']) && (int)$cardStats['pending_offers'] > 0): ?>
-                        <span class="status-warning-dot" title="Requires attention"></span>
-                    <?php endif; ?>
-                </div>
-                <?php if ($cardStats['pending_offers'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['pending_offers'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-file-earmark-check"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Draft &amp; sent offers</span>
-            <?php if (user_can('offer.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= user_can('offer.view') ? '</a>' : '</div>' ?>
-
-    <!-- Card 8: Pending Leave Requests -->
-    <?php if (user_can('leave.approve') || user_can('leave.view')): ?>
-        <a href="<?= e(url('modules/leave/index.php?status=pending')) ?>" class="stat-card" title="View pending leave requests">
-    <?php else: ?>
-        <div class="stat-card">
-    <?php endif; ?>
-        <div class="stat-card-header">
-            <div>
-                <div class="stat-label">
-                    Pending leaves
-                    <?php if (!empty($cardStats['pending_leaves']) && (int)$cardStats['pending_leaves'] > 0): ?>
-                        <span class="status-warning-dot" title="Requires attention"></span>
-                    <?php endif; ?>
-                </div>
-                <?php if ($cardStats['pending_leaves'] !== null): ?>
-                    <div class="stat-number"><?= (int)$cardStats['pending_leaves'] ?></div>
-                <?php else: ?>
-                    <div class="fs-6 fw-bold text-muted"><i class="bi bi-lock me-1"></i>Restricted</div>
-                <?php endif; ?>
-            </div>
-            <div class="stat-icon">
-                <i class="bi bi-calendar2-range"></i>
-            </div>
-        </div>
-        <div class="stat-card-footer">
-            <span>Awaiting decision</span>
-            <?php if (user_can('leave.approve') || user_can('leave.view')): ?>
-                <i class="bi bi-chevron-right stat-card-chevron" aria-hidden="true"></i>
-            <?php endif; ?>
-        </div>
-    <?= (user_can('leave.approve') || user_can('leave.view')) ? '</a>' : '</div>' ?>
-</div>
-
-<!-- ========================================================================= -->
-<!-- CHARTS & DETAILED ANALYTICS (WITH PLAIN HTML TABLE FALLBACKS) -->
-<!-- ========================================================================= -->
-
-<!-- SECTION 1: Multi-Company Comparisons (Group View or Multi-Company Scope) -->
-<?php if (!empty($companyEmpCounts) || !empty($companyRecActivity)): ?>
-    <div class="dashboard-grid">
-        <?php if (!empty($companyEmpCounts)): ?>
-            <!-- Chart 1: Company-Wise Employee Count -->
-            <div class="<?= empty($companyRecActivity) ? 'grid-col-12' : 'grid-col-6' ?>">
+    <!-- ========================================================================= -->
+    <!-- SECTION 2: CHARTS 2 x 2 LAYOUT -->
+    <!-- ========================================================================= -->
+    <?php if (!empty($companyEmpCounts) || !empty($companyRecActivity)): ?>
+        <div class="charts-2x2-grid">
+            <?php if (!empty($companyEmpCounts)): ?>
+                <!-- Chart 1: Company-Wise Employee Count (DOUGHNUT) -->
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <h2 class="chart-card-title">
-                            <i class="bi bi-bar-chart"></i> Company-wise employee count
+                            <i class="bi bi-pie-chart text-primary"></i> Company-wise employee count
                         </h2>
-                        <span class="chart-card-caption">Aggregated count</span>
+                        <span class="chart-card-caption">Active staff distribution</span>
                     </div>
                     <div class="chart-card-body">
-                        <!-- Chart.js Canvas -->
-                        <div class="chart-canvas-container">
+                        <!-- Doughnut Canvas Wrap -->
+                        <div class="chart-canvas-wrap-doughnut mb-3">
                             <?php
                             $chart1Labels = array_column($companyEmpCounts, 'company_name');
                             $chart1Active = array_map('intval', array_column($companyEmpCounts, 'active_count'));
                             $chart1Total  = array_map('intval', array_column($companyEmpCounts, 'total_count'));
-                            $hasChart1Data = !empty(array_filter($chart1Active)) || !empty(array_filter($chart1Total));
+                            $totalActiveStaff = array_sum($chart1Active);
+                            
                             $chart1Data = [
-                                'type' => 'bar',
+                                'type' => 'doughnut',
                                 'labels' => $chart1Labels,
+                                'total_active' => $totalActiveStaff,
                                 'datasets' => [
-                                    ['label' => 'Active Employees', 'data' => $chart1Active, 'backgroundColor' => '#2563EB'],
-                                    ['label' => 'Total Staff Records', 'data' => $chart1Total, 'backgroundColor' => '#64748B'],
+                                    [
+                                        'data' => $chart1Active,
+                                        'cutout' => '68%',
+                                    ],
                                 ],
                             ];
                             ?>
-                            <?php if ($hasChart1Data): ?>
-                                <canvas id="chartCompanyEmployees" data-chart="<?= e(json_encode($chart1Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
-                            <?php else: ?>
-                                <div class="chart-empty-state">No data for this period</div>
-                            <?php endif; ?>
+                            <canvas id="chartCompanyEmployees" data-chart="<?= e(json_encode($chart1Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
                         </div>
 
-                        <!-- Plain HTML Table Fallback -->
-                        <div class="chart-fallback-table table-responsive">
+                        <!-- Plain HTML Table Displayed Together (No table-light, card theme styling) -->
+                        <div class="chart-table-wrap table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
@@ -520,49 +625,42 @@ require __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
                 </div>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
 
-        <?php if (!empty($companyRecActivity)): ?>
-            <!-- Chart 2: Company-Wise Recruitment Activity -->
-            <div class="<?= empty($companyEmpCounts) ? 'grid-col-12' : 'grid-col-6' ?>">
+            <?php if (!empty($companyRecActivity)): ?>
+                <!-- Chart 2: Company-Wise Recruitment Activity (GROUPED BAR) -->
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <h2 class="chart-card-title">
-                            <i class="bi bi-briefcase"></i> Recruitment activity by company
+                            <i class="bi bi-bar-chart-steps text-primary"></i> Recruitment activity by company
                         </h2>
                         <span class="chart-card-caption">Pipeline stages</span>
                     </div>
                     <div class="chart-card-body">
-                        <!-- Chart.js Canvas -->
-                        <div class="chart-canvas-container">
+                        <!-- Grouped Bar Canvas Wrap -->
+                        <div class="chart-canvas-wrap mb-3">
                             <?php
                             $chart2Labels = array_column($companyRecActivity, 'company_name');
                             $chart2Apps   = array_map('intval', array_column($companyRecActivity, 'applications_count'));
                             $chart2Ints   = array_map('intval', array_column($companyRecActivity, 'interviews_count'));
                             $chart2Offers = array_map('intval', array_column($companyRecActivity, 'offers_count'));
                             $chart2Hires  = array_map('intval', array_column($companyRecActivity, 'hires_count'));
-                            $hasChart2Data = !empty(array_filter($chart2Apps)) || !empty(array_filter($chart2Ints)) || !empty(array_filter($chart2Offers)) || !empty(array_filter($chart2Hires));
                             $chart2Data = [
                                 'type' => 'bar',
                                 'labels' => $chart2Labels,
                                 'datasets' => [
-                                    ['label' => 'Applications', 'data' => $chart2Apps,   'backgroundColor' => '#2563EB'],
-                                    ['label' => 'Interviews',   'data' => $chart2Ints,   'backgroundColor' => '#64748B'],
-                                    ['label' => 'Offers Sent',  'data' => $chart2Offers, 'backgroundColor' => '#94A3B8'],
-                                    ['label' => 'Hires',        'data' => $chart2Hires,  'backgroundColor' => '#CBD5E1'],
+                                    ['label' => 'Applications', 'data' => $chart2Apps,   'borderRadius' => 4, 'minBarLength' => 3, 'paletteKey' => 'primary'],
+                                    ['label' => 'Interviews',   'data' => $chart2Ints,   'borderRadius' => 4, 'minBarLength' => 3, 'paletteKey' => 'third'],
+                                    ['label' => 'Offers Sent',  'data' => $chart2Offers, 'borderRadius' => 4, 'minBarLength' => 3, 'paletteKey' => 'secondary'],
+                                    ['label' => 'Hires',        'data' => $chart2Hires,  'borderRadius' => 4, 'minBarLength' => 3, 'paletteKey' => 'fourth'],
                                 ],
                             ];
                             ?>
-                            <?php if ($hasChart2Data): ?>
-                                <canvas id="chartCompanyRecruitment" data-chart="<?= e(json_encode($chart2Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
-                            <?php else: ?>
-                                <div class="chart-empty-state">No data for this period</div>
-                            <?php endif; ?>
+                            <canvas id="chartCompanyRecruitment" data-chart="<?= e(json_encode($chart2Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
                         </div>
 
-                        <!-- Plain HTML Table Fallback -->
-                        <div class="chart-fallback-table table-responsive">
+                        <!-- Plain HTML Table Displayed Together -->
+                        <div class="chart-table-wrap table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>
@@ -592,277 +690,326 @@ require __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
                 </div>
-            </div>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-
-<!-- SECTION 2: 12-Month Trends -->
-<?php if (!empty($monthlyHiring) || !empty($monthlyJoining)): ?>
-<div class="dashboard-grid">
-    <?php if (!empty($monthlyHiring)): ?>
-    <!-- Chart 3: Hiring Statistics by Month (Last 12 Mos: Applications Received vs Hired) -->
-    <div class="<?= empty($monthlyJoining) ? 'grid-col-12' : 'grid-col-6' ?>">
-        <div class="chart-card">
-            <div class="chart-card-header">
-                <h2 class="chart-card-title">
-                    <i class="bi bi-graph-up"></i> Hiring statistics (last 12 months)
-                </h2>
-                <span class="chart-card-caption">Applied vs hired</span>
-            </div>
-            <div class="chart-card-body">
-                <div class="chart-canvas-container">
-                    <?php
-                    $mHiringLabels = array_column($monthlyHiring, 'label');
-                    $mHiringApps   = array_map('intval', array_column($monthlyHiring, 'applications'));
-                    $mHiringHired  = array_map('intval', array_column($monthlyHiring, 'hired'));
-                    $hasChart3Data = !empty(array_filter($mHiringApps)) || !empty(array_filter($mHiringHired));
-                    $chart3Data = [
-                        'type' => 'line',
-                        'labels' => $mHiringLabels,
-                        'datasets' => [
-                            [
-                                'label' => 'Applications Received',
-                                'data' => $mHiringApps,
-                                'borderColor' => '#2563EB',
-                                'backgroundColor' => 'rgba(37, 99, 235, 0.1)',
-                                'tension' => 0.2,
-                                'fill' => true,
-                            ],
-                            [
-                                'label' => 'Candidates Hired',
-                                'data' => $mHiringHired,
-                                'borderColor' => '#64748B',
-                                'backgroundColor' => 'rgba(100, 116, 139, 0.1)',
-                                'tension' => 0.2,
-                                'fill' => true,
-                            ],
-                        ],
-                    ];
-                    ?>
-                    <?php if ($hasChart3Data): ?>
-                        <canvas id="chartMonthlyHiring" data-chart="<?= e(json_encode($chart3Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
-                    <?php else: ?>
-                        <div class="chart-empty-state">No data for this period</div>
-                    <?php endif; ?>
-                </div>
-
-                <!-- HTML Table Fallback -->
-                <div class="chart-fallback-table table-responsive" style="max-height: 180px; overflow-y: auto;">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="sticky-top">
-                            <tr>
-                                <th>Month</th>
-                                <th class="text-end">Applications</th>
-                                <th class="text-end">Hired</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($monthlyHiring)): ?>
-                                <tr><td colspan="3" class="text-center py-2 text-muted">No data available.</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($monthlyHiring as $mh): ?>
-                                    <tr>
-                                        <td><?= e($mh['label']) ?></td>
-                                        <td class="text-end"><?= (int)$mh['applications'] ?></td>
-                                        <td class="text-end fw-semibold"><?= (int)$mh['hired'] ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
-    </div>
     <?php endif; ?>
 
-    <?php if (!empty($monthlyJoining)): ?>
-    <!-- Chart 4: Employee Joining Statistics by Month (Last 12 Mos) -->
-    <div class="<?= empty($monthlyHiring) ? 'grid-col-12' : 'grid-col-6' ?>">
-        <div class="chart-card">
-            <div class="chart-card-header">
-                <h2 class="chart-card-title">
-                    <i class="bi bi-person-plus"></i> Employee joining history (last 12 months)
-                </h2>
-                <span class="chart-card-caption">New staff count</span>
-            </div>
-            <div class="chart-card-body">
-                <div class="chart-canvas-container">
-                    <?php
-                    $mJoinLabels = array_column($monthlyJoining, 'label');
-                    $mJoinCounts = array_map('intval', array_column($monthlyJoining, 'joinings'));
-                    $hasChart4Data = !empty(array_filter($mJoinCounts));
-                    $chart4Data = [
-                        'type' => 'bar',
-                        'labels' => $mJoinLabels,
-                        'datasets' => [
-                            [
-                                'label' => 'New Joinings',
-                                'data' => $mJoinCounts,
-                                'backgroundColor' => '#2563EB',
-                            ],
-                        ],
-                    ];
-                    ?>
-                    <?php if ($hasChart4Data): ?>
-                        <canvas id="chartMonthlyJoining" data-chart="<?= e(json_encode($chart4Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
-                    <?php else: ?>
-                        <div class="chart-empty-state">No data for this period</div>
-                    <?php endif; ?>
-                </div>
+    <!-- 12-Month Trends Row (2x2 Row 2) -->
+    <?php if (!empty($monthlyHiring) || !empty($monthlyJoining)): ?>
+        <div class="charts-2x2-grid">
+            <?php if (!empty($monthlyHiring)): ?>
+                <?php
+                $mHiringLabels = array_column($monthlyHiring, 'label');
+                $mHiringApps   = array_map('intval', array_column($monthlyHiring, 'applications'));
+                $mHiringHired  = array_map('intval', array_column($monthlyHiring, 'hired'));
+                $totalHiringApps  = array_sum($mHiringApps);
+                $totalHiringHired = array_sum($mHiringHired);
+                ?>
+                <!-- Chart 3: Hiring Statistics by Month (Last 12 Mos: LINE/AREA) -->
+                <div class="chart-card" id="cardMonthlyHiring">
+                    <div class="chart-card-header">
+                        <h2 class="chart-card-title">
+                            <i class="bi bi-graph-up text-primary"></i> Hiring statistics (last 12 months)
+                        </h2>
+                        <!-- Segmented Switch for Long Month Table -->
+                        <div class="chart-view-toggle btn-group btn-group-sm" role="group" aria-label="Toggle Chart or Table">
+                            <button type="button" class="btn btn-sm active" data-toggle-target="#cardMonthlyHiring" data-view="chart">
+                                <i class="bi bi-graph-up me-1"></i>Chart
+                            </button>
+                            <button type="button" class="btn btn-sm" data-toggle-target="#cardMonthlyHiring" data-view="table">
+                                <i class="bi bi-table me-1"></i>Table
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chart-card-body">
+                        <!-- Summary Line Above Chart -->
+                        <div class="chart-summary-line">
+                            <i class="bi bi-info-circle me-1 text-primary"></i>
+                            <span><strong><?= (int)$totalHiringApps ?></strong> applications, <strong><?= (int)$totalHiringHired ?></strong> hired in the last 12 months</span>
+                        </div>
 
-                <!-- HTML Table Fallback -->
-                <div class="chart-fallback-table table-responsive" style="max-height: 180px; overflow-y: auto;">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="sticky-top">
-                            <tr>
-                                <th>Month</th>
-                                <th class="text-end">New joinings</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($monthlyJoining)): ?>
-                                <tr><td colspan="2" class="text-center py-2 text-muted">No data available.</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($monthlyJoining as $mj): ?>
-                                    <tr>
-                                        <td><?= e($mj['label']) ?></td>
-                                        <td class="text-end fw-semibold"><?= (int)$mj['joinings'] ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-</div>
-<?php endif; ?>
-
-<!-- SECTION 3: Recruitment Funnel -->
-<div class="dashboard-grid">
-    <div class="grid-col-12">
-        <div class="chart-card">
-            <div class="chart-card-header">
-                <h2 class="chart-card-title">
-                    <i class="bi bi-funnel"></i> Recruitment funnel conversion
-                </h2>
-                <span class="chart-card-caption"><?= e($filters['date_range_label']) ?></span>
-            </div>
-            <div class="chart-card-body">
-                <div class="row align-items-center g-3">
-                    <div class="col-lg-7">
-                        <div class="chart-canvas-container" style="height: 260px;">
-                            <?php
-                            $funnelLabels = ['Applied', 'Shortlisted', 'Interviewed', 'Selected', 'Offered', 'Hired'];
-                            $funnelCounts = [
-                                (int)$funnelStats['applied'],
-                                (int)$funnelStats['shortlisted'],
-                                (int)$funnelStats['interviewed'],
-                                (int)$funnelStats['selected'],
-                                (int)$funnelStats['offered'],
-                                (int)$funnelStats['hired'],
-                            ];
-                            $hasFunnelData = !empty(array_filter($funnelCounts));
-                            $chart5Data = [
-                                'type' => 'bar',
-                                'labels' => $funnelLabels,
-                                'datasets' => [
-                                    [
-                                        'label' => 'Candidates Count',
-                                        'data' => $funnelCounts,
-                                        'backgroundColor' => ['#1D4ED8', '#2563EB', '#3B82F6', '#64748B', '#94A3B8', '#CBD5E1'],
+                        <!-- Chart View Panel -->
+                        <div class="chart-panel-view chart-panel-chart">
+                            <div class="chart-canvas-wrap">
+                                <?php
+                                $chart3Data = [
+                                    'type' => 'line',
+                                    'labels' => $mHiringLabels,
+                                    'datasets' => [
+                                        [
+                                            'label' => 'Applications Received',
+                                            'data' => $mHiringApps,
+                                            'borderColor' => '#3b82f6',
+                                            'backgroundColor' => 'rgba(59, 130, 246, 0.12)',
+                                            'tension' => 0.25,
+                                            'fill' => true,
+                                            'pointRadius' => 3,
+                                            'pointHoverRadius' => 5,
+                                        ],
+                                        [
+                                            'label' => 'Candidates Hired',
+                                            'data' => $mHiringHired,
+                                            'borderColor' => '#64748b',
+                                            'backgroundColor' => 'rgba(100, 116, 139, 0.12)',
+                                            'tension' => 0.25,
+                                            'fill' => true,
+                                            'pointRadius' => 3,
+                                            'pointHoverRadius' => 5,
+                                        ],
                                     ],
-                                ],
-                            ];
-                            ?>
-                            <?php if ($hasFunnelData): ?>
-                                <canvas id="chartRecruitmentFunnel" data-chart="<?= e(json_encode($chart5Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
-                            <?php else: ?>
-                                <div class="chart-empty-state">No data for this period</div>
-                            <?php endif; ?>
+                                ];
+                                ?>
+                                <canvas id="chartMonthlyHiring" data-chart="<?= e(json_encode($chart3Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Table View Panel (Hidden by default, segmented switch toggled) -->
+                        <div class="chart-panel-view chart-panel-table d-none">
+                            <div class="chart-table-wrap table-responsive" id="tableMonthlyHiringWrap">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th class="text-end">Applications</th>
+                                            <th class="text-end">Hired</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($monthlyHiring)): ?>
+                                            <tr><td colspan="3" class="text-center py-2 text-muted">No data available.</td></tr>
+                                        <?php else: ?>
+                                            <?php foreach ($monthlyHiring as $idx => $mh): ?>
+                                                <tr class="<?= $idx >= 4 ? 'extra-month-row d-none' : '' ?>">
+                                                    <td class="fw-medium"><?= e($mh['label']) ?></td>
+                                                    <td class="text-end"><?= (int)$mh['applications'] ?></td>
+                                                    <td class="text-end fw-semibold"><?= (int)$mh['hired'] ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                                <?php if (count($monthlyHiring) > 4): ?>
+                                    <div class="text-center py-2 table-footer-bar">
+                                        <button type="button" class="btn btn-link btn-sm btn-toggle-months" data-table-id="tableMonthlyHiringWrap">
+                                            Show all 12 months (<?= count($monthlyHiring) - 4 ?> more)
+                                        </button>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-lg-5">
-                        <!-- Funnel Progression Table Fallback -->
-                        <div class="chart-fallback-table table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Funnel stage</th>
-                                        <th class="text-end">Count</th>
-                                        <th class="text-end">Conversion %</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php
-                                    $appliedBase = max(1, (int)$funnelStats['applied']);
-                                    $stages = [
-                                        'Applied'     => $funnelStats['applied'],
-                                        'Shortlisted' => $funnelStats['shortlisted'],
-                                        'Interviewed' => $funnelStats['interviewed'],
-                                        'Selected'    => $funnelStats['selected'],
-                                        'Offered'     => $funnelStats['offered'],
-                                        'Hired'       => $funnelStats['hired'],
-                                    ];
-                                    foreach ($stages as $stageLabel => $cnt):
-                                        $pct = round(($cnt / $appliedBase) * 100, 1);
-                                    ?>
-                                        <tr>
-                                            <td class="fw-medium"><?= e($stageLabel) ?></td>
-                                            <td class="text-end fw-semibold"><?= (int)$cnt ?></td>
-                                            <td class="text-end text-muted"><?= $pct ?>%</td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($monthlyJoining)): ?>
+                <?php
+                $mJoinLabels = array_column($monthlyJoining, 'label');
+                $mJoinCounts = array_map('intval', array_column($monthlyJoining, 'joinings'));
+                $totalJoinCount = array_sum($mJoinCounts);
+                ?>
+                <!-- Chart 4: Employee Joining History by Month (Last 12 Mos: BAR) -->
+                <div class="chart-card" id="cardMonthlyJoining">
+                    <div class="chart-card-header">
+                        <h2 class="chart-card-title">
+                            <i class="bi bi-person-check text-primary"></i> Employee joining history (last 12 months)
+                        </h2>
+                        <!-- Segmented Switch for Long Month Table -->
+                        <div class="chart-view-toggle btn-group btn-group-sm" role="group" aria-label="Toggle Chart or Table">
+                            <button type="button" class="btn btn-sm active" data-toggle-target="#cardMonthlyJoining" data-view="chart">
+                                <i class="bi bi-graph-up me-1"></i>Chart
+                            </button>
+                            <button type="button" class="btn btn-sm" data-toggle-target="#cardMonthlyJoining" data-view="table">
+                                <i class="bi bi-table me-1"></i>Table
+                            </button>
                         </div>
+                    </div>
+                    <div class="chart-card-body">
+                        <!-- Summary Line Above Chart -->
+                        <div class="chart-summary-line">
+                            <i class="bi bi-info-circle me-1 text-primary"></i>
+                            <span><strong><?= (int)$totalJoinCount ?></strong> new staff joined in the last 12 months</span>
+                        </div>
+
+                        <!-- Chart View Panel -->
+                        <div class="chart-panel-view chart-panel-chart">
+                            <div class="chart-canvas-wrap">
+                                <?php
+                                $chart4Data = [
+                                    'type' => 'bar',
+                                    'labels' => $mJoinLabels,
+                                    'datasets' => [
+                                        [
+                                            'label' => 'New Joinings',
+                                            'data' => $mJoinCounts,
+                                            'backgroundColor' => '#3b82f6',
+                                            'borderRadius' => 4,
+                                            'minBarLength' => 3,
+                                        ],
+                                    ],
+                                ];
+                                ?>
+                                <canvas id="chartMonthlyJoining" data-chart="<?= e(json_encode($chart4Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Table View Panel (Hidden by default, segmented switch toggled) -->
+                        <div class="chart-panel-view chart-panel-table d-none">
+                            <div class="chart-table-wrap table-responsive" id="tableMonthlyJoiningWrap">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th class="text-end">New joinings</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($monthlyJoining)): ?>
+                                            <tr><td colspan="2" class="text-center py-2 text-muted">No data available.</td></tr>
+                                        <?php else: ?>
+                                            <?php foreach ($monthlyJoining as $idx => $mj): ?>
+                                                <tr class="<?= $idx >= 4 ? 'extra-month-row d-none' : '' ?>">
+                                                    <td class="fw-medium"><?= e($mj['label']) ?></td>
+                                                    <td class="text-end fw-semibold"><?= (int)$mj['joinings'] ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                                <?php if (count($monthlyJoining) > 4): ?>
+                                    <div class="text-center py-2 table-footer-bar">
+                                        <button type="button" class="btn btn-link btn-sm btn-toggle-months" data-table-id="tableMonthlyJoiningWrap">
+                                            Show all 12 months (<?= count($monthlyJoining) - 4 ?> more)
+                                        </button>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 3: RECRUITMENT FUNNEL CONVERSION (CHART LEFT, TABLE RIGHT) -->
+    <!-- ========================================================================= -->
+    <div class="chart-card mb-4">
+        <div class="chart-card-header">
+            <h2 class="chart-card-title">
+                <i class="bi bi-funnel text-primary"></i> Recruitment funnel conversion
+            </h2>
+            <span class="chart-card-caption"><?= e($filters['date_range_label']) ?></span>
+        </div>
+        <div class="chart-card-body">
+            <div class="funnel-grid">
+                <!-- Funnel Horizontal Bar Chart (Left) -->
+                <div>
+                    <div class="chart-canvas-wrap" style="height: 270px;">
+                        <?php
+                        $funnelLabels = ['Applied', 'Shortlisted', 'Interviewed', 'Selected', 'Offered', 'Hired'];
+                        $funnelCounts = [
+                            (int)$funnelStats['applied'],
+                            (int)$funnelStats['shortlisted'],
+                            (int)$funnelStats['interviewed'],
+                            (int)$funnelStats['selected'],
+                            (int)$funnelStats['offered'],
+                            (int)$funnelStats['hired'],
+                        ];
+                        $chart5Data = [
+                            'type' => 'bar',
+                            'labels' => $funnelLabels,
+                            'datasets' => [
+                                [
+                                    'label' => 'Candidates Count',
+                                    'data' => $funnelCounts,
+                                    'borderRadius' => 4,
+                                    'minBarLength' => 3,
+                                ],
+                            ],
+                        ];
+                        ?>
+                        <canvas id="chartRecruitmentFunnel" data-chart="<?= e(json_encode($chart5Data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"></canvas>
+                    </div>
+                </div>
+
+                <!-- Funnel Progression Table (Right) -->
+                <div>
+                    <div class="chart-table-wrap table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Funnel stage</th>
+                                    <th class="text-end">Count</th>
+                                    <th class="text-end">Conversion %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $appliedBase = max(1, (int)$funnelStats['applied']);
+                                $stages = [
+                                    'Applied'     => $funnelStats['applied'],
+                                    'Shortlisted' => $funnelStats['shortlisted'],
+                                    'Interviewed' => $funnelStats['interviewed'],
+                                    'Selected'    => $funnelStats['selected'],
+                                    'Offered'     => $funnelStats['offered'],
+                                    'Hired'       => $funnelStats['hired'],
+                                ];
+                                foreach ($stages as $stageLabel => $cnt):
+                                    $pct = round(($cnt / $appliedBase) * 100, 1);
+                                ?>
+                                    <tr>
+                                        <td class="fw-medium"><?= e($stageLabel) ?></td>
+                                        <td class="text-end fw-semibold"><?= (int)$cnt ?></td>
+                                        <td class="text-end text-muted"><?= $pct ?>%</td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- SECTION 4: Authorization and Scope (Slim row) -->
-<div class="card mb-4" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card);">
-    <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div class="d-flex align-items-center gap-3">
-            <div class="stat-icon">
-                <i class="bi bi-shield-check"></i>
-            </div>
-            <div>
-                <div class="fw-semibold text-body" style="font-size: 13.5px;">Authorization &amp; Scope</div>
-                <div class="text-muted" style="font-size: 12.5px;">
-                    <?php if (is_group_admin()): ?>
-                        Superuser privileges across all registered companies, users, and audit records in the AaZa Group.
-                    <?php elseif (!empty($access)): ?>
-                        Assigned entities: <?= e(implode(', ', array_map(fn($a) => $a['name'] . ' (' . $a['roles'] . ')', $access))) ?>
-                    <?php else: ?>
-                        No company assignments found for your login account yet.
-                    <?php endif; ?>
+    <!-- ========================================================================= -->
+    <!-- SECTION 4: AUTHORIZATION AND SCOPE (SLIM ROW AT BOTTOM) -->
+    <!-- ========================================================================= -->
+    <div class="scope-card">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="kpi-icon-circle">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold text-body" style="font-size: 13.5px;">Authorization &amp; Scope</div>
+                    <div class="text-muted" style="font-size: 12.5px;">
+                        <?php if (is_group_admin()): ?>
+                            Superuser privileges across all registered companies, users, and audit records in the AaZa Group.
+                        <?php elseif (!empty($access)): ?>
+                            Assigned entities: <?= e(implode(', ', array_map(fn($a) => $a['name'] . ' (' . $a['roles'] . ')', $access))) ?>
+                        <?php else: ?>
+                            No company assignments found for your login account yet.
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <?php if (user_can('report.view')): ?>
-                <a href="<?= e(url('modules/reports/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-bar-chart-line me-1"></i> Reports
-                </a>
-            <?php endif; ?>
-            <?php if (user_can('employee.view')): ?>
-                <a href="<?= e(url('modules/employees/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-people me-1"></i> Directory
-                </a>
-            <?php endif; ?>
-            <?php if (user_can('vacancy.view')): ?>
-                <a href="<?= e(url('modules/vacancies/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-briefcase me-1"></i> Vacancies
-                </a>
-            <?php endif; ?>
+            <div class="d-flex align-items-center gap-2">
+                <?php if (user_can('report.view')): ?>
+                    <a href="<?= e(url('modules/reports/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-bar-chart-line me-1"></i> Reports
+                    </a>
+                <?php endif; ?>
+                <?php if (user_can('employee.view')): ?>
+                    <a href="<?= e(url('modules/employees/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-people me-1"></i> Directory
+                    </a>
+                <?php endif; ?>
+                <?php if (user_can('vacancy.view')): ?>
+                    <a href="<?= e(url('modules/vacancies/index.php')) ?>" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-briefcase me-1"></i> Vacancies
+                    </a>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>
@@ -873,73 +1020,602 @@ require __DIR__ . '/../includes/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof Chart === 'undefined') return;
 
-    // Apply theme-aware text & grid colors
-    function updateChartThemeDefaults() {
-        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
-        Chart.defaults.borderColor = isDark ? '#232D3F' : '#e2e8f0';
+    const chartInstances = {};
+
+    function isDarkMode() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    }
+
+    function getCardBackgroundColor() {
+        const card = document.querySelector('.dashboard-page .chart-card');
+        if (card) {
+            const bg = window.getComputedStyle(card).backgroundColor;
+            if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
+                return bg;
+            }
+        }
+        return isDarkMode() ? '#131923' : '#ffffff';
+    }
+
+    function getThemeColors() {
+        const dark = isDarkMode();
+        const cardBg = getCardBackgroundColor();
+        return {
+            isDark: dark,
+            textColor: dark ? '#cbd5e1' : '#334155',
+            mutedColor: dark ? '#94a3b8' : '#64748b',
+            gridColor: dark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.20)',
+            primary: '#3b82f6',
+            secondarySlate: dark ? '#94a3b8' : '#8fa3bd',
+            thirdTone: '#64748b',
+            fourthColor: dark ? '#cbd5e1' : '#334155',
+            fifthColor: '#22c55e',
+            surfaceText: dark ? '#f8fafc' : '#0f172a',
+            cardBg: cardBg
+        };
+    }
+
+    function getDoughnutPalette(labels = []) {
+        const colors = getThemeColors();
+        const basePalette = [
+            '#3b82f6',              // 1. Tech blue
+            colors.secondarySlate,  // 2. Lifestyle slate
+            '#64748b',              // 3. Masala third tone
+            colors.fourthColor,     // 4. Fourth tone
+            '#22c55e'               // 5. Fifth green
+        ];
+        return labels.map((lbl, idx) => {
+            const lower = (lbl || '').toLowerCase();
+            if (lower.includes('tech')) return '#3b82f6';
+            if (lower.includes('lifestyle')) return colors.secondarySlate;
+            if (lower.includes('masala')) return '#64748b';
+            return basePalette[idx % basePalette.length];
+        });
+    }
+
+    // Custom Plugin 1: Bar Value Labels
+    const barValueLabelsPlugin = {
+        id: 'barValueLabels',
+        afterDatasetsDraw(chart) {
+            if (chart.config.type !== 'bar') return;
+            const ctx = chart.ctx;
+            const isHorizontal = chart.config.options?.indexAxis === 'y';
+            const colors = getThemeColors();
+
+            ctx.save();
+            ctx.font = '600 11px Inter, sans-serif';
+            ctx.fillStyle = colors.textColor;
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+                meta.data.forEach((element, index) => {
+                    const val = dataset.data[index];
+                    if (val === undefined || val === null || val === 0) return;
+                    const text = String(val);
+                    if (isHorizontal) {
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(text, element.x + 5, element.y);
+                    } else {
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(text, element.x, element.y - 3);
+                    }
+                });
+            });
+            ctx.restore();
+        }
+    };
+
+    // Custom Plugin 2: Doughnut Center Text (Total Active Staff)
+    const doughnutCenterPlugin = {
+        id: 'doughnutCenterText',
+        afterDraw(chart) {
+            if (chart.config.type !== 'doughnut') return;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            const { top, bottom, left, right } = chartArea;
+            const centerX = (left + right) / 2;
+            const centerY = (top + bottom) / 2;
+            const colors = getThemeColors();
+
+            const total = chart.config._totalActive !== undefined
+                ? chart.config._totalActive
+                : (chart.data.datasets[0]?.data?.reduce((a, b) => a + (Number(b) || 0), 0) || 0);
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Bold Total Number
+            ctx.font = '700 24px Inter, sans-serif';
+            ctx.fillStyle = colors.surfaceText;
+            ctx.fillText(String(total), centerX, centerY - 9);
+
+            // Muted Subtitle
+            ctx.font = '500 11px Inter, sans-serif';
+            ctx.fillStyle = colors.mutedColor;
+            ctx.fillText('Active Staff', centerX, centerY + 13);
+            ctx.restore();
+        }
+    };
+
+    Chart.register(barValueLabelsPlugin, doughnutCenterPlugin);
+
+    // Apply global Chart.js defaults
+    function applyGlobalDefaults() {
+        const colors = getThemeColors();
+        Chart.defaults.font.family = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = colors.textColor;
+        Chart.defaults.borderColor = colors.gridColor;
         if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
-            Chart.defaults.plugins.legend.labels.color = isDark ? '#f1f5f9' : '#0f172a';
+            Chart.defaults.plugins.legend.labels.color = colors.textColor;
             Chart.defaults.plugins.legend.labels.font = { family: 'Inter', size: 12 };
         }
     }
-    updateChartThemeDefaults();
+    applyGlobalDefaults();
 
-    // Helper to safely initialize chart from canvas data-chart attribute
-    function initChart(canvasId, optionsOverride = {}) {
-        const el = document.getElementById(canvasId);
+    // Chart 1: Company Employees (Doughnut)
+    function initChart1() {
+        const el = document.getElementById('chartCompanyEmployees');
         if (!el) return;
         const raw = el.getAttribute('data-chart');
         if (!raw) return;
+        const config = JSON.parse(raw);
+        const totalActive = config.total_active || 0;
+        const isMobileScreen = window.innerWidth <= 576;
+        const colors = getThemeColors();
+        const labels = config.labels || [];
+        const bgColors = getDoughnutPalette(labels);
 
-        try {
-            const config = JSON.parse(raw);
-            const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-            const mergedOptions = Object.assign({
+        chartInstances['chartCompanyEmployees'] = new Chart(el, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        data: config.datasets[0]?.data || [],
+                        backgroundColor: bgColors,
+                        borderColor: colors.cardBg,
+                        borderWidth: 3,
+                        cutout: '68%',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '68%',
+                plugins: {
+                    legend: {
+                        position: isMobileScreen ? 'bottom' : 'right',
+                        labels: {
+                            boxWidth: 12,
+                            boxHeight: 12,
+                            padding: 12,
+                            color: colors.textColor,
+                            font: { family: 'Inter', size: 12 },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (!data.labels.length || !data.datasets.length) return [];
+                                const dataset = data.datasets[0];
+                                const currentColors = getThemeColors();
+                                const total = chart.config._totalActive !== undefined
+                                    ? chart.config._totalActive
+                                    : dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
+
+                                return data.labels.map((label, i) => {
+                                    const val = Number(dataset.data[i]) || 0;
+                                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+                                    const bg = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[i] : dataset.backgroundColor;
+                                    return {
+                                        text: `${label}: ${val} (${pct}%)`,
+                                        fillStyle: bg,
+                                        strokeStyle: 'transparent',
+                                        lineWidth: 0,
+                                        fontColor: currentColors.textColor,
+                                        hidden: isNaN(dataset.data[i]) || (chart.getDatasetMeta(0).data[i] && chart.getDatasetMeta(0).data[i].hidden),
+                                        index: i
+                                    };
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = Number(context.raw) || 0;
+                                const dataset = context.dataset;
+                                const total = dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+                                return ` ${context.label}: ${val} active (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [doughnutCenterPlugin]
+        });
+        chartInstances['chartCompanyEmployees'].config._totalActive = totalActive;
+    }
+
+    // Chart 2: Recruitment Activity by Company (Grouped Bar)
+    function initChart2() {
+        const el = document.getElementById('chartCompanyRecruitment');
+        if (!el) return;
+        const raw = el.getAttribute('data-chart');
+        if (!raw) return;
+        const config = JSON.parse(raw);
+        const colors = getThemeColors();
+
+        const datasets = (config.datasets || []).map(ds => {
+            let bg = colors.primary;
+            if (ds.paletteKey === 'third') bg = colors.thirdTone;
+            else if (ds.paletteKey === 'secondary') bg = colors.secondarySlate;
+            else if (ds.paletteKey === 'fourth') bg = colors.fourthColor;
+            return {
+                ...ds,
+                backgroundColor: bg
+            };
+        });
+
+        chartInstances['chartCompanyRecruitment'] = new Chart(el, {
+            type: 'bar',
+            data: {
+                labels: config.labels || [],
+                datasets: datasets
+            },
+            options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'bottom',
+                        position: 'top',
+                        align: 'center',
                         labels: {
-                            color: isDark ? '#f1f5f9' : '#0f172a',
-                            boxWidth: 10,
+                            boxWidth: 12,
                             padding: 12,
+                            color: colors.textColor,
                             font: { family: 'Inter', size: 12 }
                         }
                     }
                 },
                 scales: {
                     x: {
-                        grid: { color: isDark ? '#1a2230' : '#f1f5f9' },
-                        ticks: { color: isDark ? '#94a3b8' : '#64748b', font: { family: 'Inter', size: 11 } }
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.mutedColor }
                     },
                     y: {
-                        grid: { color: isDark ? '#1a2230' : '#f1f5f9' },
-                        ticks: { color: isDark ? '#94a3b8' : '#64748b', font: { family: 'Inter', size: 11 } }
+                        beginAtZero: true,
+                        grid: { color: colors.gridColor },
+                        ticks: {
+                            precision: 0,
+                            color: colors.mutedColor
+                        }
                     }
                 }
-            }, optionsOverride);
+            }
+        });
+    }
 
-            new Chart(el, {
-                type: config.type || 'bar',
-                data: {
-                    labels: config.labels || [],
-                    datasets: config.datasets || []
+    // Chart 3: Monthly Hiring (Line / Area)
+    function initChart3() {
+        const el = document.getElementById('chartMonthlyHiring');
+        if (!el) return;
+        const raw = el.getAttribute('data-chart');
+        if (!raw) return;
+        const config = JSON.parse(raw);
+        const colors = getThemeColors();
+
+        chartInstances['chartMonthlyHiring'] = new Chart(el, {
+            type: 'line',
+            data: {
+                labels: config.labels || [],
+                datasets: config.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'center',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 12,
+                            color: colors.textColor,
+                            font: { family: 'Inter', size: 12 }
+                        }
+                    }
                 },
-                options: mergedOptions
+                scales: {
+                    x: {
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.mutedColor }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: colors.gridColor },
+                        ticks: {
+                            precision: 0,
+                            color: colors.mutedColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 4: Monthly Joining (Bar)
+    function initChart4() {
+        const el = document.getElementById('chartMonthlyJoining');
+        if (!el) return;
+        const raw = el.getAttribute('data-chart');
+        if (!raw) return;
+        const config = JSON.parse(raw);
+        const colors = getThemeColors();
+
+        chartInstances['chartMonthlyJoining'] = new Chart(el, {
+            type: 'bar',
+            data: {
+                labels: config.labels || [],
+                datasets: config.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'center',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 12,
+                            color: colors.textColor,
+                            font: { family: 'Inter', size: 12 }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.mutedColor }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: colors.gridColor },
+                        ticks: {
+                            precision: 0,
+                            color: colors.mutedColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 5: Recruitment Funnel (Horizontal Bar)
+    function initChart5() {
+        const el = document.getElementById('chartRecruitmentFunnel');
+        if (!el) return;
+        const raw = el.getAttribute('data-chart');
+        if (!raw) return;
+        const config = JSON.parse(raw);
+        const colors = getThemeColors();
+
+        const funnelPalette = [
+            '#1d4ed8',
+            '#2563eb',
+            '#3b82f6',
+            '#64748b',
+            colors.secondarySlate,
+            colors.fourthColor
+        ];
+
+        chartInstances['chartRecruitmentFunnel'] = new Chart(el, {
+            type: 'bar',
+            data: {
+                labels: config.labels || [],
+                datasets: [
+                    {
+                        label: 'Candidates Count',
+                        data: config.datasets[0]?.data || [],
+                        backgroundColor: funnelPalette,
+                        borderRadius: 4,
+                        minBarLength: 3
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: colors.gridColor },
+                        ticks: {
+                            precision: 0,
+                            color: colors.mutedColor
+                        }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: colors.textColor, font: { weight: 600 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize all charts
+    initChart1();
+    initChart2();
+    initChart3();
+    initChart4();
+    initChart5();
+
+    // Segmented Switch ("Chart | Table") for Monthly Cards
+    document.querySelectorAll('.chart-view-toggle button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const cardSel = this.getAttribute('data-toggle-target');
+            const viewType = this.getAttribute('data-view');
+            const card = document.querySelector(cardSel);
+            if (!card) return;
+
+            card.querySelectorAll('.chart-view-toggle button').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
             });
-        } catch (e) {
-            console.error('Failed to parse chart config for ' + canvasId, e);
+            this.classList.add('active');
+            this.setAttribute('aria-pressed', 'true');
+
+            const chartPanel = card.querySelector('.chart-panel-chart');
+            const tablePanel = card.querySelector('.chart-panel-table');
+
+            if (viewType === 'table') {
+                if (chartPanel) chartPanel.classList.add('d-none');
+                if (tablePanel) tablePanel.classList.remove('d-none');
+            } else {
+                if (tablePanel) tablePanel.classList.add('d-none');
+                if (chartPanel) {
+                    chartPanel.classList.remove('d-none');
+                    const canvas = chartPanel.querySelector('canvas');
+                    if (canvas && chartInstances[canvas.id]) {
+                        chartInstances[canvas.id].resize();
+                    }
+                }
+            }
+        });
+    });
+
+    // Month table "Show all 12 months" toggle
+    document.querySelectorAll('.btn-toggle-months').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tableWrapId = this.getAttribute('data-table-id');
+            const wrap = document.getElementById(tableWrapId);
+            if (!wrap) return;
+
+            const extraRows = wrap.querySelectorAll('.extra-month-row');
+            if (!extraRows.length) return;
+
+            const isCurrentlyHidden = extraRows[0].classList.contains('d-none');
+            extraRows.forEach(r => {
+                if (isCurrentlyHidden) {
+                    r.classList.remove('d-none');
+                } else {
+                    r.classList.add('d-none');
+                }
+            });
+
+            this.textContent = isCurrentlyHidden
+                ? 'Show less (4 months)'
+                : `Show all 12 months (${extraRows.length} more)`;
+        });
+    });
+
+    // Theme Re-rendering: Listen to data-bs-theme changes
+    function reapplyThemeToCharts() {
+        const colors = getThemeColors();
+        applyGlobalDefaults();
+
+        // 1. Doughnut
+        const donut = chartInstances['chartCompanyEmployees'];
+        if (donut && donut.data.datasets.length) {
+            donut.data.datasets[0].backgroundColor = getDoughnutPalette(donut.data.labels);
+            donut.data.datasets[0].borderColor = colors.cardBg;
+            if (donut.options.plugins?.legend?.labels) {
+                donut.options.plugins.legend.labels.color = colors.textColor;
+            }
+            donut.update();
+        }
+
+        // 2. Recruitment Activity
+        const rec = chartInstances['chartCompanyRecruitment'];
+        if (rec && rec.data.datasets.length) {
+            rec.data.datasets.forEach(ds => {
+                if (ds.paletteKey === 'third') ds.backgroundColor = colors.thirdTone;
+                else if (ds.paletteKey === 'secondary') ds.backgroundColor = colors.secondarySlate;
+                else if (ds.paletteKey === 'fourth') ds.backgroundColor = colors.fourthColor;
+            });
+            if (rec.options.scales?.x?.grid) rec.options.scales.x.grid.color = colors.gridColor;
+            if (rec.options.scales?.x?.ticks) rec.options.scales.x.ticks.color = colors.mutedColor;
+            if (rec.options.scales?.y?.grid) rec.options.scales.y.grid.color = colors.gridColor;
+            if (rec.options.scales?.y?.ticks) rec.options.scales.y.ticks.color = colors.mutedColor;
+            if (rec.options.plugins?.legend?.labels) rec.options.plugins.legend.labels.color = colors.textColor;
+            rec.update();
+        }
+
+        // 3. Monthly Hiring
+        const hiring = chartInstances['chartMonthlyHiring'];
+        if (hiring) {
+            if (hiring.options.scales?.x?.grid) hiring.options.scales.x.grid.color = colors.gridColor;
+            if (hiring.options.scales?.x?.ticks) hiring.options.scales.x.ticks.color = colors.mutedColor;
+            if (hiring.options.scales?.y?.grid) hiring.options.scales.y.grid.color = colors.gridColor;
+            if (hiring.options.scales?.y?.ticks) hiring.options.scales.y.ticks.color = colors.mutedColor;
+            if (hiring.options.plugins?.legend?.labels) hiring.options.plugins.legend.labels.color = colors.textColor;
+            hiring.update();
+        }
+
+        // 4. Monthly Joining
+        const joining = chartInstances['chartMonthlyJoining'];
+        if (joining) {
+            if (joining.options.scales?.x?.grid) joining.options.scales.x.grid.color = colors.gridColor;
+            if (joining.options.scales?.x?.ticks) joining.options.scales.x.ticks.color = colors.mutedColor;
+            if (joining.options.scales?.y?.grid) joining.options.scales.y.grid.color = colors.gridColor;
+            if (joining.options.scales?.y?.ticks) joining.options.scales.y.ticks.color = colors.mutedColor;
+            if (joining.options.plugins?.legend?.labels) joining.options.plugins.legend.labels.color = colors.textColor;
+            joining.update();
+        }
+
+        // 5. Funnel
+        const funnel = chartInstances['chartRecruitmentFunnel'];
+        if (funnel && funnel.data.datasets.length) {
+            funnel.data.datasets[0].backgroundColor = [
+                '#1d4ed8',
+                '#2563eb',
+                '#3b82f6',
+                '#64748b',
+                colors.secondarySlate,
+                colors.fourthColor
+            ];
+            if (funnel.options.scales?.x?.grid) funnel.options.scales.x.grid.color = colors.gridColor;
+            if (funnel.options.scales?.x?.ticks) funnel.options.scales.x.ticks.color = colors.mutedColor;
+            if (funnel.options.scales?.y?.ticks) funnel.options.scales.y.ticks.color = colors.textColor;
+            funnel.update();
         }
     }
 
-    initChart('chartCompanyEmployees');
-    initChart('chartCompanyRecruitment');
-    initChart('chartMonthlyHiring');
-    initChart('chartMonthlyJoining');
-    initChart('chartRecruitmentFunnel', {
-        indexAxis: 'y'
+    const themeObserver = new MutationObserver(mutations => {
+        for (const m of mutations) {
+            if (m.type === 'attributes' && m.attributeName === 'data-bs-theme') {
+                reapplyThemeToCharts();
+            }
+        }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
+
+    // Responsive doughnut legend position adjustments on window resize
+    let resizeTimer = null;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const doughnut = chartInstances['chartCompanyEmployees'];
+            if (doughnut) {
+                const isMobile = window.innerWidth <= 576;
+                const currentPos = doughnut.options.plugins.legend.position;
+                const newPos = isMobile ? 'bottom' : 'right';
+                if (currentPos !== newPos) {
+                    doughnut.options.plugins.legend.position = newPos;
+                    doughnut.update();
+                }
+            }
+        }, 150);
     });
 });
 </script>

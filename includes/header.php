@@ -366,22 +366,64 @@ if (!empty($currentUserRow['full_name'])) {
             <div class="topbar-right">
                 <!-- Company Switcher -->
                 <?php if (count($navSwitchCompanies) > 1): ?>
-                    <form method="post" action="<?= e(url('public/switch_company.php')) ?>" class="company-switcher-form m-0">
-                        <?= csrf_field() ?>
-                        <div class="company-switcher-wrap">
-                            <div class="company-switcher-mobile-btn d-none" aria-hidden="true" title="Switch Company">
-                                <i class="bi bi-buildings"></i>
+                    <?php
+                    $navActiveCompName = 'All Companies';
+                    foreach ($navSwitchCompanies as $navComp) {
+                        if ($navActiveCompany === (int)$navComp['id']) {
+                            $navActiveCompName = (string)$navComp['name'];
+                            break;
+                        }
+                    }
+                    ?>
+                    <div class="dropdown company-switcher-dropdown-wrap">
+                        <!-- Desktop Trigger: Shows company name with building icon and chevron -->
+                        <button type="button" class="company-switcher-btn d-none d-sm-inline-flex" data-bs-toggle="dropdown" aria-expanded="false" title="Switch active company">
+                            <i class="bi bi-buildings me-2 text-muted"></i>
+                            <span class="company-switcher-btn-text text-truncate"><?= e($navActiveCompName) ?></span>
+                            <i class="bi bi-chevron-down ms-2 small text-muted"></i>
+                        </button>
+                        <!-- Mobile Trigger: 36px icon button -->
+                        <button type="button" class="topbar-icon-btn company-switcher-mobile-btn d-inline-flex d-sm-none position-relative" data-bs-toggle="dropdown" aria-expanded="false" title="Switch active company: <?= e($navActiveCompName) ?>">
+                            <i class="bi bi-buildings"></i>
+                            <?php if ($navActiveCompany > 0): ?>
+                                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle" style="transform: translate(-6px, 6px) !important;">
+                                    <span class="visually-hidden">scoped company</span>
+                                </span>
+                            <?php endif; ?>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end shadow border p-1 company-switcher-menu">
+                            <div class="px-3 py-1.5 text-uppercase fw-semibold text-muted" style="font-size: 11px; letter-spacing: 0.5px;">
+                                Active Company
                             </div>
-                            <select name="company_id" class="form-select company-switcher-select" aria-label="Active company" onchange="this.form.submit()">
-                                <option value="0">All Companies</option>
+                            <form method="post" action="<?= e(url('public/switch_company.php')) ?>" id="topbarCompanySwitchForm" class="m-0">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="company_id" id="topbarCompanyIdInput" value="0">
+                                <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-2 px-3 rounded <?= $navActiveCompany === 0 ? 'active' : '' ?>" onclick="document.getElementById('topbarCompanyIdInput').value='0'; document.getElementById('topbarCompanySwitchForm').submit();">
+                                    <span class="d-inline-flex align-items-center gap-2">
+                                        <i class="bi bi-grid-fill <?= $navActiveCompany === 0 ? 'text-white' : 'text-primary' ?>"></i>
+                                        <span>All Companies</span>
+                                    </span>
+                                    <?php if ($navActiveCompany === 0): ?>
+                                        <i class="bi bi-check2 fw-bold ms-2"></i>
+                                    <?php endif; ?>
+                                </button>
+                                <div class="dropdown-divider my-1"></div>
                                 <?php foreach ($navSwitchCompanies as $navComp): ?>
-                                    <option value="<?= (int)$navComp['id'] ?>"<?= $navActiveCompany === (int)$navComp['id'] ? ' selected' : '' ?>>
-                                        <?= e($navComp['name']) ?>
-                                    </option>
+                                    <?php $isActive = $navActiveCompany === (int)$navComp['id']; ?>
+                                    <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-2 px-3 rounded <?= $isActive ? 'active' : '' ?>" onclick="document.getElementById('topbarCompanyIdInput').value='<?= (int)$navComp['id'] ?>'; document.getElementById('topbarCompanySwitchForm').submit();">
+                                        <span class="d-inline-flex align-items-center gap-2 text-truncate">
+                                            <i class="bi bi-building <?= $isActive ? 'text-white' : 'text-secondary' ?>"></i>
+                                            <span class="text-truncate"><?= e($navComp['name']) ?></span>
+                                        </span>
+                                        <?php if ($isActive): ?>
+                                            <i class="bi bi-check2 fw-bold ms-2"></i>
+                                        <?php endif; ?>
+                                    </button>
                                 <?php endforeach; ?>
-                            </select>
+                            </form>
                         </div>
-                    </form>
+                    </div>
                 <?php endif; ?>
 
                 <!-- Theme Toggle Button (36px) -->
@@ -488,10 +530,10 @@ if (!empty($currentUserRow['full_name'])) {
                     };
                     ?>
                     <?php $navRole = in_array($navFlashType, ['danger', 'error', 'warning'], true) ? 'alert' : 'status'; ?>
-                    <div class="toast-flash alert alert-<?= e($navFlashType) ?> alert-dismissible fade show" role="<?= $navRole ?>" aria-live="<?= $navRole === 'alert' ? 'assertive' : 'polite' ?>">
-                        <i class="bi <?= $navFlashIcon ?> fs-5 flex-shrink-0"></i>
-                        <div class="flex-grow-1 small fw-medium"><?= e($navFlashMessage) ?></div>
-                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <div class="toast-flash alert alert-<?= e($navFlashType) ?> fade show" role="<?= $navRole ?>" aria-live="<?= $navRole === 'alert' ? 'assertive' : 'polite' ?>">
+                        <i class="bi <?= $navFlashIcon ?> toast-flash-icon"></i>
+                        <div class="toast-flash-message"><?= e($navFlashMessage) ?></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 <?php endforeach; ?>
             </div>
