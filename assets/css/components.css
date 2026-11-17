@@ -1078,6 +1078,28 @@ a.stat-card:hover .stat-card-chevron {
   white-space: nowrap;
 }
 
+/* Vacancy List Applicants Link & Actions */
+.vacancy-applicants-link {
+  display: inline-block;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color var(--transition-fast, 0.15s ease),
+              border-color var(--transition-fast, 0.15s ease),
+              color var(--transition-fast, 0.15s ease),
+              box-shadow var(--transition-fast, 0.15s ease);
+}
+.vacancy-applicants-link:hover {
+  text-decoration: underline !important;
+  background-color: var(--bs-primary-bg-subtle, rgba(13, 110, 253, 0.12)) !important;
+  border-color: var(--bs-primary-border-subtle, rgba(13, 110, 253, 0.35)) !important;
+  color: var(--bs-primary, #0d6efd) !important;
+}
+[data-bs-theme="dark"] .vacancy-applicants-link:hover {
+  background-color: rgba(59, 130, 246, 0.22) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  color: #60a5fa !important;
+}
+
 /* ==========================================================================
    COMPANY LOGOS & BRANDING UTILITIES
    ========================================================================== */

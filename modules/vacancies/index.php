@@ -304,7 +304,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th>Closing Date</th>
                             <th>Applicants</th>
                             <th>Status</th>
-                            <th class="text-end pe-3 action-col">Actions</th>
+                            <th class="text-end pe-3 action-col" style="min-width: 125px; width: 125px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -370,22 +370,35 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="badge bg-body-secondary text-body border px-2 py-1" title="Application Count">
-                                            <strong><?= (int)$v['applications_count'] ?></strong> candidate<?= (int)$v['applications_count'] === 1 ? '' : 's' ?>
-                                        </span>
+                                        <?php $appCount = (int)$v['applications_count']; ?>
+                                        <?php if ($appCount > 0): ?>
+                                            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$v['id'])) ?>"
+                                               class="badge bg-body-secondary text-body border px-2 py-1 text-decoration-none vacancy-applicants-link"
+                                               title="Open pipeline board"
+                                               onclick="event.stopPropagation();">
+                                                <strong><?= $appCount ?></strong> candidate<?= $appCount === 1 ? '' : 's' ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="badge bg-body-secondary text-body border px-2 py-1" title="Application Count">
+                                                <strong>0</strong> candidates
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?= vacancy_status_badge($v['status']) ?>
                                     </td>
-                                    <td class="text-end pe-3 action-col">
-                                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
-                                            <a href="<?= e($vacViewUrl) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5 text-nowrap" title="View vacancy details">
+                                    <td class="text-end pe-3 action-col" style="min-width: 125px; width: 125px;">
+                                        <div class="d-inline-flex align-items-center gap-1.5 justify-content-end text-nowrap">
+                                            <a href="<?= e($vacViewUrl) ?>" class="btn btn-sm btn-outline-primary py-1 px-2.5 text-nowrap d-inline-flex align-items-center" title="View vacancy details" style="min-width: 68px; justify-content: center;">
                                                 <i class="bi bi-eye me-1"></i>View
                                             </a>
-                                            <a href="<?= e(url('modules/vacancies/pipeline.php?id=' . (int)$v['id'])) ?>" class="btn btn-sm btn-primary text-nowrap" title="Open Pipeline Board">
-                                                <i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Pipeline Board</span><span class="d-sm-none">Pipeline</span>
-                                            </a>
                                             <?= action_menu([
+                                                [
+                                                    'type'  => 'link',
+                                                    'label' => 'Open Pipeline Board',
+                                                    'url'   => 'modules/vacancies/pipeline.php?id=' . (int)$v['id'],
+                                                    'icon'  => 'bi-kanban',
+                                                ],
                                                 [
                                                     'type'  => 'link',
                                                     'label' => 'View Details',
