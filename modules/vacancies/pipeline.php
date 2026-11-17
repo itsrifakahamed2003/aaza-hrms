@@ -597,66 +597,132 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <!-- Move Stage Modal -->
 <div class="modal fade" id="moveModal" tabindex="-1" aria-labelledby="moveModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered status-change-dialog">
+        <div class="modal-content shadow border-0">
             <form method="post" action="<?= e(url('modules/vacancies/pipeline.php?id=' . $id)) ?>" id="moveForm">
                 <?= csrf_field() ?>
                 <input type="hidden" name="application_id" id="moveAppId" value="0">
 
-                <div class="modal-header">
-                    <h5 class="modal-title" id="moveModalLabel">Move Pipeline Stage</h5>
+                <div class="modal-header border-bottom py-2.5 px-3 px-sm-3.5">
+                    <div class="d-flex align-items-center">
+                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary me-3 flex-shrink-0" style="width: 34px; height: 34px;">
+                            <i class="bi bi-arrow-left-right" style="font-size: 14px;"></i>
+                        </span>
+                        <div>
+                            <h5 class="modal-title fw-bold text-body mb-0" id="moveModalLabel" style="font-size: 1.025rem;">Move Pipeline Stage</h5>
+                            <div class="text-muted small" style="font-size: 11px;">Transition candidate across recruitment stages</div>
+                        </div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <p class="small text-muted mb-3">
-                        Updating status for candidate <strong id="moveCandidateName"></strong>. Every status transition is tracked in candidate history.
-                    </p>
-
-                    <!-- Evaluation Scores Summary Box -->
-                    <div id="moveEvaluationsContainer" class="mb-3 d-none">
-                        <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
-                            <i class="bi bi-star-fill text-warning"></i> Interview Evaluations Summary
-                        </label>
-                        <div id="moveEvaluationsList" class="bg-body-tertiary p-2 rounded border small"></div>
+                <div class="modal-body p-3 p-sm-3.5">
+                    <!-- Candidate Context Pill Banner -->
+                    <div class="status-modal-vacancy-banner d-flex align-items-center justify-content-between rounded-3">
+                        <div class="d-flex align-items-center gap-2.5 min-w-0">
+                            <div class="d-inline-flex align-items-center justify-content-center rounded-2 bg-primary-subtle text-primary flex-shrink-0" style="width: 32px; height: 32px;">
+                                <i class="bi bi-person-fill" style="font-size: 13px;"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.04em; font-size: 9.5px;">Candidate</div>
+                                <div class="fw-bold text-body text-truncate" style="font-size: 13.5px;" id="moveCandidateName"></div>
+                            </div>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 font-monospace" style="font-size: 10px;">Pipeline Card</span>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Destination Stage <span class="text-danger">*</span></label>
-                        <select name="new_status" id="moveDestinationStage" class="form-select" required onchange="handleMoveStageChange(this.value)">
+                    <!-- Evaluation Scores Summary Box -->
+                    <div id="moveEvaluationsContainer" class="status-modal-form-group d-none">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <label class="status-modal-label mb-0" style="font-size: 13.5px;">
+                                <span class="d-flex align-items-center gap-2">
+                                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning" style="width: 22px; height: 22px; flex-shrink: 0;">
+                                        <i class="bi bi-star-fill" style="font-size: 11px;"></i>
+                                    </span>
+                                    <span>Interview Evaluations</span>
+                                </span>
+                            </label>
+                            <span class="badge bg-secondary-subtle text-secondary font-monospace" style="font-size: 10.5px;" id="moveEvalsSummaryCountBadge">Panel Feedback</span>
+                        </div>
+                        <div id="moveEvaluationsList" class="evaluations-summary-card"></div>
+                    </div>
+
+                    <div class="status-modal-form-group">
+                        <label class="status-modal-label" for="moveDestinationStage">
+                            <span class="d-flex align-items-center gap-2">
+                                <i class="bi bi-diagram-3-fill text-primary" style="font-size: 13px;"></i>
+                                <span>Destination Stage <span class="text-danger">*</span></span>
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary fw-normal font-monospace" style="font-size: 10px;">REQUIRED</span>
+                        </label>
+                        <select name="new_status" id="moveDestinationStage" class="form-select status-modal-select" required onchange="handleMoveStageChange(this.value)">
                             <?php foreach ($stages as $sk => $sl): ?>
                                 <option value="<?= e($sk) ?>" id="move-opt-<?= e($sk) ?>"><?= e($sl) ?></option>
                             <?php endforeach; ?>
                             <option value="withdrawn">Withdrawn</option>
                         </select>
-                        <div id="moveSelectedHelp" class="form-text text-danger d-none">
-                            Selected is only permitted from the Interviewed stage after at least one evaluation.
+                        <div id="moveSelectedHelp" class="alert alert-warning py-2.5 px-3 small mt-2.5 d-none d-flex align-items-start gap-2.5 mb-0 rounded-3">
+                            <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-0.5"></i>
+                            <div class="lh-sm">
+                                <strong>Stage Rule:</strong> Selected is only permitted from the Interviewed stage after at least one evaluation has been recorded.
+                            </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" id="moveRemarksLabel">Remarks / Transition Notes</label>
-                        <textarea name="remarks" id="moveRemarks" class="form-control" rows="3" maxlength="255" placeholder="e.g. Cleared technical interview, Moved to shortlist, Rejected due to missing prerequisite qualification..."></textarea>
-                        <div class="form-text" id="moveRemarksHelp">Required for Rejected and On Hold transitions (max 255 characters).</div>
-                    </div>
-
-                    <div class="form-check p-2 ps-4 rounded bg-body-tertiary border" id="moveEmailCheckWrapper">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               name="send_email"
-                               id="moveSendEmailCheckbox"
-                               value="1"
-                               <?= mail_is_configured() ? 'checked' : '' ?>>
-                        <label class="form-check-label small fw-semibold" for="moveSendEmailCheckbox">
-                            <i class="bi bi-envelope me-1 text-primary"></i>Email the candidate
+                    <div class="status-modal-form-group">
+                        <label class="status-modal-label" id="moveRemarksLabel" for="moveRemarks">
+                            <span class="d-flex align-items-center gap-2">
+                                <i class="bi bi-chat-square-text-fill text-primary" style="font-size: 13px;"></i>
+                                <span>Remarks / Transition Notes</span>
+                            </span>
+                            <span class="text-muted fw-normal" style="font-size: 11px;">Max 255 chars</span>
                         </label>
-                        <div class="form-text small mt-0">
-                            Sends stage notification email when moving to Shortlisted, Selected, or Rejected.
-                        </div>
+                        <textarea name="remarks" id="moveRemarks" class="form-control status-modal-textarea" rows="2" maxlength="255" placeholder="Reason for transition, interview feedback, score, or rejection reason..."></textarea>
+                        <div class="form-text small mt-1.5" id="moveRemarksHelp">Required for Rejected and On Hold transitions (max 255 characters).</div>
+                    </div>
+
+                    <!-- Email the Candidate Notification Card -->
+                    <div class="status-email-card" id="moveEmailCheckWrapper">
+                        <label class="status-email-label d-flex align-items-start gap-2.5 mb-0" for="moveSendEmailCheckbox">
+                            <div class="pt-0.5 flex-shrink-0">
+                                <input class="form-check-input status-email-checkbox m-0"
+                                       type="checkbox"
+                                       name="send_email"
+                                       id="moveSendEmailCheckbox"
+                                       value="1"
+                                       <?= mail_is_configured() ? 'checked' : '' ?>>
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                    <div class="d-flex align-items-center gap-1.5 min-w-0">
+                                        <span class="status-email-icon-badge">
+                                            <i class="bi bi-envelope-fill"></i>
+                                        </span>
+                                        <span class="status-email-title text-body text-truncate">Email the candidate</span>
+                                    </div>
+                                    <?php if (mail_is_configured()): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace auto-notify-badge flex-shrink-0">AUTO-NOTIFY</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="status-email-desc text-muted">
+                                    <?php if (mail_is_configured()): ?>
+                                        <span>Sends an automated stage notification email when moving to <strong>Shortlisted</strong>, <strong>Selected</strong>, or <strong>Rejected</strong>.</span>
+                                    <?php else: ?>
+                                        <span class="text-warning-emphasis d-inline-flex align-items-center gap-1.5">
+                                            <i class="bi bi-info-circle-fill"></i>
+                                            <span>Outgoing SMTP is not configured in <code>config/config.php</code>.</span>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </label>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Confirm &amp; Update Status</button>
+                <div class="modal-footer bg-body-tertiary border-top py-2 px-3 px-sm-3.5 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-3 d-inline-flex align-items-center gap-1.5 shadow-sm fw-semibold">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>Confirm &amp; Update Status</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -747,6 +813,16 @@ function handleMoveStageChange(val) {
     }
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function openMoveModal(appId, targetStage, candidateName, currentStatus) {
     document.getElementById('moveAppId').value = appId;
     document.getElementById('moveCandidateName').textContent = candidateName;
@@ -782,19 +858,28 @@ function openMoveModal(appId, targetStage, candidateName, currentStatus) {
             try {
                 const evals = JSON.parse(rawEvals.textContent);
                 if (evals && evals.length > 0) {
-                    evals.forEach(ev => {
-                        const recClass = ev.recommendation === 'strong_hire' ? 'text-bg-success' : (ev.recommendation === 'hire' ? 'text-bg-primary' : (ev.recommendation === 'reject' ? 'text-bg-danger' : 'text-bg-warning'));
+                    evals.forEach((ev, idx) => {
+                        const recClass = ev.recommendation === 'strong_hire' ? 'bg-success-subtle text-success border border-success-subtle' :
+                                         (ev.recommendation === 'hire' ? 'bg-primary-subtle text-primary border border-primary-subtle' :
+                                         (ev.recommendation === 'reject' ? 'bg-danger-subtle text-danger border border-danger-subtle' :
+                                         'bg-warning-subtle text-warning-emphasis border border-warning-subtle'));
                         const div = document.createElement('div');
-                        div.className = 'py-1 border-bottom d-flex justify-content-between align-items-center';
+                        div.className = 'eval-item d-flex justify-content-between align-items-center flex-wrap gap-2' + (idx < evals.length - 1 ? ' border-bottom' : '');
                         div.innerHTML = `
-                            <div>
-                                <strong>R${ev.round_no || 1}</strong> &bull; ${ev.evaluator_name || 'Evaluator'}:
-                                Score: <strong class="text-primary">${ev.overall_score !== null ? ev.overall_score : '—'}</strong> / 5
+                            <div class="d-flex align-items-center gap-2 small flex-wrap">
+                                <span class="badge bg-secondary-subtle text-body border font-monospace px-1.5 py-0.5" style="font-size: 11px;">R${ev.round_no || 1}</span>
+                                <span class="fw-semibold text-body" style="font-size: 13px;">${escapeHtml(ev.evaluator_name || 'Evaluator')}</span>
+                                <span class="text-muted">&bull;</span>
+                                <span class="text-muted" style="font-size: 12.5px;">Score: <strong class="text-primary">${ev.overall_score !== null ? Number(ev.overall_score).toFixed(2) : '—'}</strong> / 5</span>
                             </div>
-                            <span class="badge ${recClass}">${ev.recommendation ? ev.recommendation.replace('_', ' ') : '—'}</span>
+                            <span class="badge ${recClass} text-uppercase font-monospace" style="font-size: 10px; padding: 3px 8px; letter-spacing: 0.03em;">${ev.recommendation ? escapeHtml(ev.recommendation.replace('_', ' ')) : '—'}</span>
                         `;
                         list.appendChild(div);
                     });
+                    const countBadge = document.getElementById('moveEvalsSummaryCountBadge');
+                    if (countBadge) {
+                        countBadge.textContent = `${evals.length} ${evals.length === 1 ? 'Review' : 'Reviews'}`;
+                    }
                     container.classList.remove('d-none');
                 }
             } catch(e) {

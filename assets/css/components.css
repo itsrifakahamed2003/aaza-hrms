@@ -1262,6 +1262,239 @@ a.stat-card:hover .stat-card-chevron {
   border: 1px solid rgba(13, 110, 253, 0.25);
 }
 
+/* ==========================================================================
+   Application Status Change Modal & Email Notification Card
+   ========================================================================== */
+.status-change-dialog {
+  max-width: 480px !important;
+}
+
+.status-change-dialog .modal-content {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  border: 1px solid var(--bs-border-color, rgba(148, 163, 184, 0.16));
+}
+
+.status-change-dialog .modal-header {
+  padding: 0.85rem 1.25rem;
+}
+
+.status-change-dialog .modal-body {
+  padding: 1rem 1.25rem;
+}
+
+.status-change-dialog .modal-footer {
+  padding: 0.75rem 1.25rem;
+  gap: 8px;
+}
+
+@media (max-width: 576px) {
+  .status-change-dialog {
+    margin: 0.5rem auto !important;
+    max-width: calc(100% - 1rem) !important;
+  }
+  .status-change-dialog .modal-header {
+    padding: 0.75rem 1rem !important;
+  }
+  .status-change-dialog .modal-body {
+    padding: 0.95rem 1rem !important;
+  }
+  .status-change-dialog .modal-footer {
+    padding: 0.75rem 1rem !important;
+  }
+  .status-modal-vacancy-banner {
+    padding: 0.65rem 0.85rem !important;
+    margin-bottom: 0.85rem !important;
+  }
+  .status-modal-form-group {
+    margin-bottom: 0.85rem !important;
+  }
+  .status-email-card {
+    padding: 0.7rem 0.85rem !important;
+    margin-top: 0.85rem !important;
+  }
+  .status-email-title {
+    font-size: 13px !important;
+  }
+  .auto-notify-badge {
+    font-size: 9px !important;
+    padding: 1px 5px !important;
+  }
+}
+
+.status-modal-vacancy-banner {
+  background-color: var(--bs-tertiary-bg, rgba(148, 163, 184, 0.08));
+  border: 1px solid var(--bs-border-color, rgba(148, 163, 184, 0.18));
+  border-radius: 9px;
+  padding: 0.65rem 0.95rem;
+  margin-bottom: 0.95rem;
+}
+
+.evaluations-summary-card {
+  background-color: var(--bs-tertiary-bg, rgba(148, 163, 184, 0.06));
+  border: 1px solid var(--bs-border-color, rgba(148, 163, 184, 0.16));
+  border-radius: 9px;
+  padding: 0.3rem 0.45rem;
+}
+
+.evaluations-summary-card .eval-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.evaluations-summary-card .eval-item:hover {
+  background-color: var(--bs-secondary-bg, rgba(148, 163, 184, 0.08));
+}
+
+.evaluations-summary-card .eval-item:last-child {
+  border-bottom: none !important;
+}
+
+.status-modal-form-group {
+  margin-bottom: 0.95rem;
+}
+
+.status-modal-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.status-modal-select {
+  min-height: 38px;
+  border-radius: 7px;
+  font-size: 13px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--bs-border-color, rgba(148, 163, 184, 0.3));
+  background-color: var(--surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-hover), box-shadow var(--transition-hover);
+}
+
+.status-modal-select:focus {
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.status-modal-textarea {
+  border-radius: 7px;
+  font-size: 13px;
+  padding: 0.5rem 0.85rem;
+  line-height: 1.45;
+  border: 1px solid var(--bs-border-color, rgba(148, 163, 184, 0.3));
+  background-color: var(--surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-hover), box-shadow var(--transition-hover);
+  resize: vertical;
+  min-height: 64px;
+}
+
+.status-modal-textarea:focus {
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Redesigned Email Candidate Checkbox Card */
+.status-email-card {
+  background-color: var(--bs-tertiary-bg, #f8fafc);
+  border: 1px solid var(--bs-border-color, rgba(148, 163, 184, 0.22));
+  border-radius: 10px;
+  padding: 0.75rem 0.95rem;
+  margin-top: 0.95rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  cursor: pointer;
+}
+
+.status-email-card:hover {
+  background-color: var(--bs-secondary-bg, #f1f5f9);
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.08);
+}
+
+.status-email-label {
+  cursor: pointer;
+  width: 100%;
+}
+
+.status-email-checkbox {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px !important;
+}
+
+.status-email-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.status-email-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.auto-notify-badge {
+  font-size: 9.5px;
+  padding: 1.5px 6px;
+  letter-spacing: 0.03em;
+}
+
+.status-email-desc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+[data-bs-theme="dark"] .status-change-dialog .modal-content {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+[data-bs-theme="dark"] .status-email-card {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .status-email-card:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: #3b82f6;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .status-email-icon-badge {
+  background-color: rgba(59, 130, 246, 0.22);
+  color: #60a5fa;
+}
+
+[data-bs-theme="dark"] .status-modal-vacancy-banner {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .evaluations-summary-card {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 [data-bs-theme="dark"] .confirm-icon-wrapper.variant-danger {
   background: rgba(220, 53, 69, 0.22);
   color: #f87171;

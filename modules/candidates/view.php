@@ -769,75 +769,140 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <!-- Change Status Modal -->
 <div class="modal fade" id="statusChangeModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered status-change-dialog">
+        <div class="modal-content shadow border-0">
             <form method="post" action="<?= e(url('modules/candidates/status_change.php')) ?>">
                 <?= csrf_field() ?>
                 <input type="hidden" name="application_id" id="modalAppId" value="0">
                 <input type="hidden" name="return_to" value="<?= e(url('modules/candidates/view.php?id=' . $id)) ?>">
 
-                <div class="modal-header">
-                    <h5 class="modal-title" id="statusModalLabel">Change Application Status</h5>
+                <div class="modal-header border-bottom py-2.5 px-3 px-sm-3.5">
+                    <div class="d-flex align-items-center">
+                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary me-3 flex-shrink-0" style="width: 34px; height: 34px;">
+                            <i class="bi bi-arrow-left-right" style="font-size: 14px;"></i>
+                        </span>
+                        <div>
+                            <h5 class="modal-title fw-bold text-body mb-0" id="statusModalLabel" style="font-size: 1.025rem;">Change Application Status</h5>
+                            <div class="text-muted small" style="font-size: 11px;">Progress candidate through the recruitment pipeline</div>
+                        </div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Vacancy</label>
-                        <div class="fw-semibold" id="modalVacancyTitle"></div>
+                <div class="modal-body p-3 p-sm-3.5">
+                    <!-- Vacancy Context Pill Banner -->
+                    <div class="status-modal-vacancy-banner d-flex align-items-center justify-content-between rounded-3">
+                        <div class="d-flex align-items-center gap-2.5 min-w-0">
+                            <div class="d-inline-flex align-items-center justify-content-center rounded-2 bg-primary-subtle text-primary flex-shrink-0" style="width: 32px; height: 32px;">
+                                <i class="bi bi-briefcase-fill" style="font-size: 13px;"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-muted text-uppercase fw-semibold" style="letter-spacing: 0.04em; font-size: 9.5px;">Target Vacancy</div>
+                                <div class="fw-bold text-body text-truncate" style="font-size: 13.5px;" id="modalVacancyTitle"></div>
+                            </div>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 font-monospace" style="font-size: 10px;">Candidate App</span>
                     </div>
 
-                    <!-- Evaluation Scores Summary (Shown when deciding) -->
-                    <div id="evaluationsSummaryContainer" class="mb-3 d-none">
-                        <label class="form-label fw-semibold text-secondary small d-flex align-items-center gap-1">
-                            <i class="bi bi-star-fill text-warning"></i> Interview Evaluations Summary
+                    <!-- Evaluation Scores Summary (Shown when evaluations exist) -->
+                    <div id="evaluationsSummaryContainer" class="status-modal-form-group d-none">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <label class="status-modal-label mb-0" style="font-size: 13.5px;">
+                                <span class="d-flex align-items-center gap-2">
+                                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning" style="width: 22px; height: 22px; flex-shrink: 0;">
+                                        <i class="bi bi-star-fill" style="font-size: 11px;"></i>
+                                    </span>
+                                    <span>Interview Evaluations</span>
+                                </span>
+                            </label>
+                            <span class="badge bg-secondary-subtle text-secondary font-monospace" style="font-size: 10.5px;" id="evalsSummaryCountBadge">Panel Feedback</span>
+                        </div>
+                        <div id="evaluationsSummaryList" class="evaluations-summary-card"></div>
+                    </div>
+
+                    <!-- New Stage / Status Select -->
+                    <div class="status-modal-form-group">
+                        <label class="status-modal-label" for="modalNewStatus">
+                            <span class="d-flex align-items-center gap-2">
+                                <i class="bi bi-diagram-3-fill text-primary" style="font-size: 13px;"></i>
+                                <span>New Stage / Status <span class="text-danger">*</span></span>
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary fw-normal font-monospace" style="font-size: 10px;">REQUIRED</span>
                         </label>
-                        <div id="evaluationsSummaryList" class="bg-body-tertiary p-2 rounded border small"></div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">New Stage / Status <span class="text-danger">*</span></label>
-                        <select name="new_status" id="modalNewStatus" class="form-select" required onchange="handleStatusSelectionChange(this.value)">
+                        <select name="new_status" id="modalNewStatus" class="form-select status-modal-select" required onchange="handleStatusSelectionChange(this.value)">
                             <?php foreach (manual_status_list() as $val => $lbl): ?>
                                 <option value="<?= e($val) ?>" id="status-opt-<?= e($val) ?>"><?= e($lbl) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div id="selectedStatusHelp" class="form-text text-danger d-none">
-                            Selected is only permitted from the Interviewed stage after at least one evaluation.
+                        <div id="selectedStatusHelp" class="alert alert-warning py-2.5 px-3 small mt-2.5 d-none d-flex align-items-start gap-2.5 mb-0 rounded-3">
+                            <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-0.5"></i>
+                            <div class="lh-sm">
+                                <strong>Stage Rule:</strong> Selected is only permitted from the Interviewed stage after at least one evaluation has been recorded.
+                            </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" id="remarksLabel">Remarks &amp; Notes</label>
-                        <textarea name="remarks" id="modalRemarks" class="form-control" rows="3" maxlength="255" placeholder="Reason for transition, interview feedback, score, or rejection reason..."></textarea>
-                        <div class="form-text" id="remarksHelp">Required for Rejected and On Hold transitions (max 255 characters).</div>
-                    </div>
-
-                    <!-- Optional Email the candidate checkbox (shown for shortlisted / selected / rejected) -->
-                    <div class="form-check p-2 ps-4 rounded bg-body-tertiary border" id="statusEmailCheckWrapper">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               name="send_email"
-                               id="modalSendEmailCheckbox"
-                               value="1"
-                               <?= ($mailIsConfigured && $candidateHasEmail) ? 'checked' : '' ?>
-                               <?= !$candidateHasEmail ? 'disabled' : '' ?>>
-                        <label class="form-check-label small fw-semibold" for="modalSendEmailCheckbox">
-                            <i class="bi bi-envelope me-1 text-primary"></i>Email the candidate
+                    <!-- Remarks & Notes -->
+                    <div class="status-modal-form-group">
+                        <label class="status-modal-label" id="remarksLabel" for="modalRemarks">
+                            <span class="d-flex align-items-center gap-2">
+                                <i class="bi bi-chat-square-text-fill text-primary" style="font-size: 13px;"></i>
+                                <span>Remarks &amp; Notes</span>
+                            </span>
+                            <span class="text-muted fw-normal" style="font-size: 11px;">Max 255 chars</span>
                         </label>
-                        <div class="form-text small mt-0">
-                            <?php if (!$candidateHasEmail): ?>
-                                Candidate has no email address on file.
-                            <?php elseif ($mailIsConfigured): ?>
-                                Sends automatic stage notification email when status is Shortlisted, Selected, or Rejected.
-                            <?php else: ?>
-                                Outgoing SMTP is not configured; uncheck or configure SMTP in config.php to send automatically.
-                            <?php endif; ?>
-                        </div>
+                        <textarea name="remarks" id="modalRemarks" class="form-control status-modal-textarea" rows="2" maxlength="255" placeholder="Reason for transition, interview feedback, score, or rejection reason..."></textarea>
+                        <div class="form-text small mt-1.5" id="remarksHelp">Required for Rejected and On Hold transitions (max 255 characters).</div>
+                    </div>
+
+                    <!-- Email the Candidate Notification Card -->
+                    <div class="status-email-card" id="statusEmailCheckWrapper">
+                        <label class="status-email-label d-flex align-items-start gap-2.5 mb-0" for="modalSendEmailCheckbox">
+                            <div class="pt-0.5 flex-shrink-0">
+                                <input class="form-check-input status-email-checkbox m-0"
+                                       type="checkbox"
+                                       name="send_email"
+                                       id="modalSendEmailCheckbox"
+                                       value="1"
+                                       <?= ($mailIsConfigured && $candidateHasEmail) ? 'checked' : '' ?>
+                                       <?= !$candidateHasEmail ? 'disabled' : '' ?>>
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                    <div class="d-flex align-items-center gap-1.5 min-w-0">
+                                        <span class="status-email-icon-badge">
+                                            <i class="bi bi-envelope-fill"></i>
+                                        </span>
+                                        <span class="status-email-title text-body text-truncate">Email the candidate</span>
+                                    </div>
+                                    <?php if ($candidateHasEmail && $mailIsConfigured): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace auto-notify-badge flex-shrink-0">AUTO-NOTIFY</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="status-email-desc text-muted">
+                                    <?php if (!$candidateHasEmail): ?>
+                                        <span class="text-danger d-inline-flex align-items-center gap-1.5">
+                                            <i class="bi bi-exclamation-circle-fill"></i>
+                                            <span>Candidate has no email address on file.</span>
+                                        </span>
+                                    <?php elseif ($mailIsConfigured): ?>
+                                        <span>Sends an automated stage notification email when status is <strong>Shortlisted</strong>, <strong>Selected</strong>, or <strong>Rejected</strong>.</span>
+                                    <?php else: ?>
+                                        <span class="text-warning-emphasis d-inline-flex align-items-center gap-1.5">
+                                            <i class="bi bi-info-circle-fill"></i>
+                                            <span>Outgoing SMTP is not configured in <code>config/config.php</code>.</span>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </label>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Status</button>
+                <div class="modal-footer bg-body-tertiary border-top py-2 px-3 px-sm-3.5 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-3 d-inline-flex align-items-center gap-1.5 shadow-sm fw-semibold">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>Update Status</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -1059,6 +1124,16 @@ function openEmailCandidateModal(appId, templateKey) {
     });
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function openStatusChangeModal(appId, currentStatus, vacancyTitle, canViewEvals) {
     document.getElementById('modalAppId').value = appId;
     document.getElementById('modalVacancyTitle').textContent = vacancyTitle;
@@ -1093,19 +1168,28 @@ function openStatusChangeModal(appId, currentStatus, vacancyTitle, canViewEvals)
             try {
                 const evals = JSON.parse(rawEvals.textContent);
                 if (evals && evals.length > 0) {
-                    evals.forEach(ev => {
-                        const recClass = ev.recommendation === 'strong_hire' ? 'text-bg-success' : (ev.recommendation === 'hire' ? 'text-bg-primary' : (ev.recommendation === 'reject' ? 'text-bg-danger' : 'text-bg-warning'));
+                    evals.forEach((ev, idx) => {
+                        const recClass = ev.recommendation === 'strong_hire' ? 'bg-success-subtle text-success border border-success-subtle' :
+                                         (ev.recommendation === 'hire' ? 'bg-primary-subtle text-primary border border-primary-subtle' :
+                                         (ev.recommendation === 'reject' ? 'bg-danger-subtle text-danger border border-danger-subtle' :
+                                         'bg-warning-subtle text-warning-emphasis border border-warning-subtle'));
                         const div = document.createElement('div');
-                        div.className = 'py-1 border-bottom d-flex justify-content-between align-items-center';
+                        div.className = 'eval-item d-flex justify-content-between align-items-center flex-wrap gap-2' + (idx < evals.length - 1 ? ' border-bottom' : '');
                         div.innerHTML = `
-                            <div>
-                                <strong>R${ev.round_no || 1}</strong> &bull; ${ev.evaluator_name || 'Evaluator'}:
-                                Score: <strong class="text-primary">${ev.overall_score !== null ? ev.overall_score : '—'}</strong> / 5
+                            <div class="d-flex align-items-center gap-2 small flex-wrap">
+                                <span class="badge bg-secondary-subtle text-body border font-monospace px-1.5 py-0.5" style="font-size: 11px;">R${ev.round_no || 1}</span>
+                                <span class="fw-semibold text-body" style="font-size: 13px;">${escapeHtml(ev.evaluator_name || 'Evaluator')}</span>
+                                <span class="text-muted">&bull;</span>
+                                <span class="text-muted" style="font-size: 12.5px;">Score: <strong class="text-primary">${ev.overall_score !== null ? Number(ev.overall_score).toFixed(2) : '—'}</strong> / 5</span>
                             </div>
-                            <span class="badge ${recClass}">${ev.recommendation ? ev.recommendation.replace('_', ' ') : '—'}</span>
+                            <span class="badge ${recClass} text-uppercase font-monospace" style="font-size: 10px; padding: 3px 8px; letter-spacing: 0.03em;">${ev.recommendation ? escapeHtml(ev.recommendation.replace('_', ' ')) : '—'}</span>
                         `;
                         list.appendChild(div);
                     });
+                    const countBadge = document.getElementById('evalsSummaryCountBadge');
+                    if (countBadge) {
+                        countBadge.textContent = `${evals.length} ${evals.length === 1 ? 'Review' : 'Reviews'}`;
+                    }
                     container.classList.remove('d-none');
                 }
             } catch(e) {

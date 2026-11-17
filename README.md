@@ -390,13 +390,10 @@ aaza_hrms/
 │   ├── logout.php                 # Secure session termination (POST + CSRF)
 │   ├── setup.php                  # Initial superadmin bootstrap tool
 │   └── switch_company.php         # Active tenant company context switcher
-├── storage/
-│   ├── backups/                   # Encrypted / compressed backup archives (.sql.gz)
-│   ├── logs/                      # Application error logs (app.log)
-│   └── uploads/                   # Uploaded employee documents, resumes & medical slips
-└── tests/
-    ├── run_tests.php              # Automated test suite (127 assertions across 19 suites)
-    └── smoke_http.md              # Role-by-role manual HTTP test matrix
+└── storage/
+    ├── backups/                   # Encrypted / compressed backup archives (.sql.gz)
+    ├── logs/                      # Application error logs (app.log)
+    └── uploads/                   # Uploaded employee documents, resumes & medical slips
 ```
 
 ---
@@ -539,6 +536,6 @@ Before taking AaZa HRMS live:
 5. [ ] **Restrict Database Privileges:** Grant the application database user only `SELECT`, `INSERT`, `UPDATE`, `DELETE`, and `LOCK TABLES` privileges; remove `DROP` and `GRANT` permissions.
 6. [ ] **Automate Scheduled Backups:** Set up Windows Task Scheduler or Linux crontab to execute `php bin/backup.php` daily.
 7. [ ] **Automate Daily Reminders:** Register Windows Task Scheduler or crontab to execute `php bin/send_reminders.php` daily at 08:00 AM.
-8. [ ] **Lockdown File Permissions:** Ensure `.htaccess` blocks public web access to `config/`, `database/`, `includes/`, `storage/`, `tests/`, and `docs/`.
+8. [ ] **Lockdown File Permissions:** Ensure `.htaccess` blocks public web access to `config/`, `database/`, `includes/`, `storage/`, and `docs/`.
 9. [ ] **Audit Trail Monitoring:** Regularly review `modules/audit/` for unauthorized login attempts or administrative privilege adjustments.
 
