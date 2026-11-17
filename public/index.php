@@ -600,7 +600,7 @@ require __DIR__ . '/../includes/header.php';
 
                         <!-- Plain HTML Table Displayed Together (No table-light, card theme styling) -->
                         <div class="chart-table-wrap table-responsive">
-                            <table class="table table-hover align-middle mb-0">
+                            <table class="table table-hover align-middle mb-0 table-compact-card table-company-staff">
                                 <thead>
                                     <tr>
                                         <th>Company</th>
@@ -699,11 +699,18 @@ require __DIR__ . '/../includes/header.php';
         <div class="charts-2x2-grid">
             <?php if (!empty($monthlyHiring)): ?>
                 <?php
-                $mHiringLabels = array_column($monthlyHiring, 'label');
-                $mHiringApps   = array_map('intval', array_column($monthlyHiring, 'applications'));
-                $mHiringHired  = array_map('intval', array_column($monthlyHiring, 'hired'));
+                $mHiringShortLabels = [];
+                $mHiringFullLabels  = [];
+                foreach ($monthlyHiring as $mh) {
+                    $ts = !empty($mh['ym']) ? strtotime($mh['ym'] . '-01') : strtotime($mh['label']);
+                    $mHiringShortLabels[] = date('M', $ts);
+                    $mHiringFullLabels[]  = date('F Y', $ts);
+                }
+                $mHiringApps      = array_map('intval', array_column($monthlyHiring, 'applications'));
+                $mHiringHired     = array_map('intval', array_column($monthlyHiring, 'hired'));
                 $totalHiringApps  = array_sum($mHiringApps);
                 $totalHiringHired = array_sum($mHiringHired);
+                $hiringDateRange  = !empty($monthlyHiring) ? ($monthlyHiring[0]['label'] . ' – ' . end($monthlyHiring)['label']) : '';
                 ?>
                 <!-- Chart 3: Hiring Statistics by Month (Last 12 Mos: LINE/AREA) -->
                 <div class="chart-card" id="cardMonthlyHiring">
@@ -725,7 +732,7 @@ require __DIR__ . '/../includes/header.php';
                         <!-- Summary Line Above Chart -->
                         <div class="chart-summary-line">
                             <i class="bi bi-info-circle me-1 text-primary"></i>
-                            <span><strong><?= (int)$totalHiringApps ?></strong> applications, <strong><?= (int)$totalHiringHired ?></strong> hired in the last 12 months</span>
+                            <span><strong><?= (int)$totalHiringApps ?></strong> applications, <strong><?= (int)$totalHiringHired ?></strong> hired in the last 12 months<?php if ($hiringDateRange): ?> <span class="text-muted small ms-1">(<?= e($hiringDateRange) ?>)</span><?php endif; ?></span>
                         </div>
 
                         <!-- Chart View Panel -->
@@ -734,27 +741,36 @@ require __DIR__ . '/../includes/header.php';
                                 <?php
                                 $chart3Data = [
                                     'type' => 'line',
-                                    'labels' => $mHiringLabels,
+                                    'labels' => $mHiringShortLabels,
+                                    'full_labels' => $mHiringFullLabels,
                                     'datasets' => [
                                         [
                                             'label' => 'Applications Received',
                                             'data' => $mHiringApps,
                                             'borderColor' => '#3b82f6',
                                             'backgroundColor' => 'rgba(59, 130, 246, 0.12)',
-                                            'tension' => 0.25,
+                                            'borderWidth' => 2.5,
+                                            'tension' => 0.35,
                                             'fill' => true,
-                                            'pointRadius' => 3,
-                                            'pointHoverRadius' => 5,
+                                            'pointRadius' => 0,
+                                            'pointHoverRadius' => 6,
+                                            'pointBackgroundColor' => '#3b82f6',
+                                            'pointBorderColor' => '#ffffff',
+                                            'pointBorderWidth' => 2,
                                         ],
                                         [
                                             'label' => 'Candidates Hired',
                                             'data' => $mHiringHired,
-                                            'borderColor' => '#64748b',
-                                            'backgroundColor' => 'rgba(100, 116, 139, 0.12)',
-                                            'tension' => 0.25,
+                                            'borderColor' => '#10b981',
+                                            'backgroundColor' => 'rgba(16, 185, 129, 0.08)',
+                                            'borderWidth' => 2.5,
+                                            'tension' => 0.35,
                                             'fill' => true,
-                                            'pointRadius' => 3,
-                                            'pointHoverRadius' => 5,
+                                            'pointRadius' => 0,
+                                            'pointHoverRadius' => 6,
+                                            'pointBackgroundColor' => '#10b981',
+                                            'pointBorderColor' => '#ffffff',
+                                            'pointBorderWidth' => 2,
                                         ],
                                     ],
                                 ];
@@ -766,7 +782,7 @@ require __DIR__ . '/../includes/header.php';
                         <!-- Table View Panel (Hidden by default, segmented switch toggled) -->
                         <div class="chart-panel-view chart-panel-table d-none">
                             <div class="chart-table-wrap table-responsive" id="tableMonthlyHiringWrap">
-                                <table class="table table-hover align-middle mb-0">
+                                <table class="table table-hover align-middle mb-0 table-compact-card table-monthly-hiring">
                                     <thead>
                                         <tr>
                                             <th>Month</th>
@@ -803,9 +819,16 @@ require __DIR__ . '/../includes/header.php';
 
             <?php if (!empty($monthlyJoining)): ?>
                 <?php
-                $mJoinLabels = array_column($monthlyJoining, 'label');
-                $mJoinCounts = array_map('intval', array_column($monthlyJoining, 'joinings'));
+                $mJoinShortLabels = [];
+                $mJoinFullLabels  = [];
+                foreach ($monthlyJoining as $mj) {
+                    $ts = !empty($mj['ym']) ? strtotime($mj['ym'] . '-01') : strtotime($mj['label']);
+                    $mJoinShortLabels[] = date('M', $ts);
+                    $mJoinFullLabels[]  = date('F Y', $ts);
+                }
+                $mJoinCounts    = array_map('intval', array_column($monthlyJoining, 'joinings'));
                 $totalJoinCount = array_sum($mJoinCounts);
+                $joinDateRange  = !empty($monthlyJoining) ? ($monthlyJoining[0]['label'] . ' – ' . end($monthlyJoining)['label']) : '';
                 ?>
                 <!-- Chart 4: Employee Joining History by Month (Last 12 Mos: BAR) -->
                 <div class="chart-card" id="cardMonthlyJoining">
@@ -827,7 +850,7 @@ require __DIR__ . '/../includes/header.php';
                         <!-- Summary Line Above Chart -->
                         <div class="chart-summary-line">
                             <i class="bi bi-info-circle me-1 text-primary"></i>
-                            <span><strong><?= (int)$totalJoinCount ?></strong> new staff joined in the last 12 months</span>
+                            <span><strong><?= (int)$totalJoinCount ?></strong> new staff joined in the last 12 months<?php if ($joinDateRange): ?> <span class="text-muted small ms-1">(<?= e($joinDateRange) ?>)</span><?php endif; ?></span>
                         </div>
 
                         <!-- Chart View Panel -->
@@ -836,13 +859,17 @@ require __DIR__ . '/../includes/header.php';
                                 <?php
                                 $chart4Data = [
                                     'type' => 'bar',
-                                    'labels' => $mJoinLabels,
+                                    'labels' => $mJoinShortLabels,
+                                    'full_labels' => $mJoinFullLabels,
                                     'datasets' => [
                                         [
                                             'label' => 'New Joinings',
                                             'data' => $mJoinCounts,
                                             'backgroundColor' => '#3b82f6',
-                                            'borderRadius' => 4,
+                                            'hoverBackgroundColor' => '#2563eb',
+                                            'borderRadius' => 6,
+                                            'borderSkipped' => false,
+                                            'maxBarThickness' => 32,
                                             'minBarLength' => 3,
                                         ],
                                     ],
@@ -855,7 +882,7 @@ require __DIR__ . '/../includes/header.php';
                         <!-- Table View Panel (Hidden by default, segmented switch toggled) -->
                         <div class="chart-panel-view chart-panel-table d-none">
                             <div class="chart-table-wrap table-responsive" id="tableMonthlyJoiningWrap">
-                                <table class="table table-hover align-middle mb-0">
+                                <table class="table table-hover align-middle mb-0 table-compact-card table-monthly-joining">
                                     <thead>
                                         <tr>
                                             <th>Month</th>
@@ -922,7 +949,14 @@ require __DIR__ . '/../includes/header.php';
                                 [
                                     'label' => 'Candidates Count',
                                     'data' => $funnelCounts,
-                                    'borderRadius' => 4,
+                                    'borderRadius' => [
+                                        'topRight' => 6,
+                                        'bottomRight' => 6,
+                                        'topLeft' => 0,
+                                        'bottomLeft' => 0,
+                                    ],
+                                    'borderSkipped' => false,
+                                    'barPercentage' => 0.72,
                                     'minBarLength' => 3,
                                 ],
                             ],
@@ -935,7 +969,7 @@ require __DIR__ . '/../includes/header.php';
                 <!-- Funnel Progression Table (Right) -->
                 <div>
                     <div class="chart-table-wrap table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 table-compact-card table-funnel-progression">
                             <thead>
                                 <tr>
                                     <th>Funnel stage</th>
@@ -1083,20 +1117,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const colors = getThemeColors();
 
             ctx.save();
-            ctx.font = '600 11px Inter, sans-serif';
+            ctx.font = '600 11.5px Inter, sans-serif';
             ctx.fillStyle = colors.textColor;
 
             chart.data.datasets.forEach((dataset, datasetIndex) => {
                 const meta = chart.getDatasetMeta(datasetIndex);
                 if (meta.hidden) return;
+                const isFunnel = chart.canvas && chart.canvas.id === 'chartRecruitmentFunnel';
+                const appliedBase = isFunnel && dataset.data[0] > 0 ? dataset.data[0] : 1;
+
                 meta.data.forEach((element, index) => {
                     const val = dataset.data[index];
                     if (val === undefined || val === null || val === 0) return;
-                    const text = String(val);
+                    let text = String(val);
+                    if (isFunnel) {
+                        const pct = Math.round((Number(val) / appliedBase) * 100);
+                        text = `${val} (${pct}%)`;
+                    }
                     if (isHorizontal) {
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(text, element.x + 5, element.y);
+                        ctx.fillText(text, element.x + 6, element.y);
                     } else {
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'bottom';
@@ -1318,29 +1359,53 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: {
                         position: 'top',
-                        align: 'center',
+                        align: 'end',
                         labels: {
-                            boxWidth: 12,
-                            padding: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 14,
                             color: colors.textColor,
-                            font: { family: 'Inter', size: 12 }
+                            font: { family: 'Inter', size: 12, weight: 500 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) {
+                                if (!items.length) return '';
+                                const idx = items[0].dataIndex;
+                                return (config.full_labels && config.full_labels[idx]) ? config.full_labels[idx] : items[0].label;
+                            }
                         }
                     }
                 },
                 scales: {
                     x: {
-                        grid: { color: colors.gridColor },
-                        ticks: { color: colors.mutedColor }
+                        grid: { display: false, drawBorder: false },
+                        ticks: {
+                            color: colors.mutedColor,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: false,
+                            font: { family: 'Inter', size: 11 }
+                        }
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: colors.gridColor },
+                        grace: '18%',
+                        grid: { color: colors.gridColor, drawBorder: false },
                         ticks: {
                             precision: 0,
-                            color: colors.mutedColor
+                            color: colors.mutedColor,
+                            font: { family: 'Inter', size: 11 }
                         }
                     }
                 }
@@ -1367,28 +1432,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'top',
-                        align: 'center',
-                        labels: {
-                            boxWidth: 12,
-                            padding: 12,
-                            color: colors.textColor,
-                            font: { family: 'Inter', size: 12 }
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) {
+                                if (!items.length) return '';
+                                const idx = items[0].dataIndex;
+                                return (config.full_labels && config.full_labels[idx]) ? config.full_labels[idx] : items[0].label;
+                            },
+                            label: function(context) {
+                                return ' ' + (context.dataset.label || 'New Joinings') + ': ' + context.parsed.y;
+                            }
                         }
                     }
                 },
                 scales: {
                     x: {
-                        grid: { color: colors.gridColor },
-                        ticks: { color: colors.mutedColor }
+                        grid: { display: false, drawBorder: false },
+                        ticks: {
+                            color: colors.mutedColor,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: false,
+                            font: { family: 'Inter', size: 11 }
+                        }
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: colors.gridColor },
+                        grace: '18%',
+                        grid: { color: colors.gridColor, drawBorder: false },
                         ticks: {
                             precision: 0,
-                            color: colors.mutedColor
+                            color: colors.mutedColor,
+                            font: { family: 'Inter', size: 11 }
                         }
                     }
                 }
@@ -1406,13 +1482,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const colors = getThemeColors();
 
         const funnelPalette = [
-            '#1d4ed8',
-            '#2563eb',
-            '#3b82f6',
-            '#64748b',
-            colors.secondarySlate,
-            colors.fourthColor
+            '#2563eb', // Applied
+            '#3b82f6', // Shortlisted
+            '#60a5fa', // Interviewed
+            '#64748b', // Selected
+            '#0284c7', // Offered
+            '#10b981'  // Hired
         ];
+
+        const funnelData = config.datasets[0]?.data || [];
+        const maxVal = Math.max(...funnelData, 1);
+        const dynamicXMax = Math.max(Math.ceil(maxVal * 1.38 / 5) * 5, 5);
 
         chartInstances['chartRecruitmentFunnel'] = new Chart(el, {
             type: 'bar',
@@ -1421,9 +1501,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [
                     {
                         label: 'Candidates Count',
-                        data: config.datasets[0]?.data || [],
+                        data: funnelData,
                         backgroundColor: funnelPalette,
-                        borderRadius: 4,
+                        borderRadius: {
+                            topRight: 6,
+                            bottomRight: 6,
+                            topLeft: 0,
+                            bottomLeft: 0
+                        },
+                        borderSkipped: false,
+                        barPercentage: 0.72,
                         minBarLength: 3
                     }
                 ]
@@ -1438,15 +1525,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     x: {
                         beginAtZero: true,
-                        grid: { color: colors.gridColor },
+                        max: dynamicXMax,
+                        grid: { color: colors.gridColor, drawBorder: false },
                         ticks: {
                             precision: 0,
-                            color: colors.mutedColor
+                            color: colors.mutedColor,
+                            font: { family: 'Inter', size: 11 }
                         }
                     },
                     y: {
-                        grid: { display: false },
-                        ticks: { color: colors.textColor, font: { weight: 600 } }
+                        grid: { display: false, drawBorder: false },
+                        ticks: {
+                            color: colors.textColor,
+                            font: { family: 'Inter', size: 12, weight: 600 }
+                        }
                     }
                 }
             }
@@ -1554,7 +1646,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // 3. Monthly Hiring
         const hiring = chartInstances['chartMonthlyHiring'];
         if (hiring) {
-            if (hiring.options.scales?.x?.grid) hiring.options.scales.x.grid.color = colors.gridColor;
             if (hiring.options.scales?.x?.ticks) hiring.options.scales.x.ticks.color = colors.mutedColor;
             if (hiring.options.scales?.y?.grid) hiring.options.scales.y.grid.color = colors.gridColor;
             if (hiring.options.scales?.y?.ticks) hiring.options.scales.y.ticks.color = colors.mutedColor;
@@ -1565,11 +1656,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // 4. Monthly Joining
         const joining = chartInstances['chartMonthlyJoining'];
         if (joining) {
-            if (joining.options.scales?.x?.grid) joining.options.scales.x.grid.color = colors.gridColor;
             if (joining.options.scales?.x?.ticks) joining.options.scales.x.ticks.color = colors.mutedColor;
             if (joining.options.scales?.y?.grid) joining.options.scales.y.grid.color = colors.gridColor;
             if (joining.options.scales?.y?.ticks) joining.options.scales.y.ticks.color = colors.mutedColor;
-            if (joining.options.plugins?.legend?.labels) joining.options.plugins.legend.labels.color = colors.textColor;
             joining.update();
         }
 
@@ -1577,12 +1666,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const funnel = chartInstances['chartRecruitmentFunnel'];
         if (funnel && funnel.data.datasets.length) {
             funnel.data.datasets[0].backgroundColor = [
-                '#1d4ed8',
                 '#2563eb',
                 '#3b82f6',
+                '#60a5fa',
                 '#64748b',
-                colors.secondarySlate,
-                colors.fourthColor
+                '#0284c7',
+                '#10b981'
             ];
             if (funnel.options.scales?.x?.grid) funnel.options.scales.x.grid.color = colors.gridColor;
             if (funnel.options.scales?.x?.ticks) funnel.options.scales.x.ticks.color = colors.mutedColor;

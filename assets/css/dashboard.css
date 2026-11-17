@@ -558,6 +558,16 @@
   border-radius: 4px;
 }
 
+/* Neutralize the global 650px min-width so dashboard card tables fit compactly */
+.dashboard-page .chart-table-wrap > table.table,
+.dashboard-page .table-responsive > table.table-compact-card,
+.dashboard-page .table-compact-card {
+  min-width: 0 !important;
+  width: 100% !important;
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
 .dashboard-page table.table {
   --bs-table-bg: transparent !important;
   --bs-table-accent-bg: transparent !important;
@@ -568,6 +578,14 @@
   border-color: rgba(148, 163, 184, 0.18) !important;
   margin-bottom: 0;
   font-size: 13px;
+}
+
+.dashboard-page table.table th,
+.dashboard-page table.table td {
+  padding: 8px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dashboard-page table.table thead,
@@ -599,6 +617,48 @@
   background-color: rgba(148, 163, 184, 0.06) !important;
 }
 
+/* Specific proportional column distributions */
+/* 1. Monthly Hiring: Month (38%), Applications (32%), Hired (30%) */
+.dashboard-page table.table-monthly-hiring th:nth-child(1),
+.dashboard-page table.table-monthly-hiring td:nth-child(1) { width: 38%; }
+.dashboard-page table.table-monthly-hiring th:nth-child(2),
+.dashboard-page table.table-monthly-hiring td:nth-child(2) { width: 32%; }
+.dashboard-page table.table-monthly-hiring th:nth-child(3),
+.dashboard-page table.table-monthly-hiring td:nth-child(3) { width: 30%; }
+
+/* 2. Monthly Joining: Month (52%), New joinings (48%) */
+.dashboard-page table.table-monthly-joining th:nth-child(1),
+.dashboard-page table.table-monthly-joining td:nth-child(1) { width: 52%; }
+.dashboard-page table.table-monthly-joining th:nth-child(2),
+.dashboard-page table.table-monthly-joining td:nth-child(2) { width: 48%; }
+
+/* 3. Recruitment Funnel: Funnel stage (38%), Count (28%), Conversion % (34%) */
+.dashboard-page table.table-funnel-progression th:nth-child(1),
+.dashboard-page table.table-funnel-progression td:nth-child(1) { width: 38%; }
+.dashboard-page table.table-funnel-progression th:nth-child(2),
+.dashboard-page table.table-funnel-progression td:nth-child(2) { width: 28%; }
+.dashboard-page table.table-funnel-progression th:nth-child(3),
+.dashboard-page table.table-funnel-progression td:nth-child(3) { width: 34%; }
+
+/* 4. Company Breakdown: Company (44%), Active staff (28%), Total staff (28%) */
+.dashboard-page table.table-company-staff th:nth-child(1),
+.dashboard-page table.table-company-staff td:nth-child(1) { width: 44%; }
+.dashboard-page table.table-company-staff th:nth-child(2),
+.dashboard-page table.table-company-staff td:nth-child(2) { width: 28%; }
+.dashboard-page table.table-company-staff th:nth-child(3),
+.dashboard-page table.table-company-staff td:nth-child(3) { width: 28%; }
+
+@media (max-width: 575.98px) {
+  .dashboard-page table.table th,
+  .dashboard-page table.table td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .dashboard-page table.table thead th {
+    font-size: 11px;
+  }
+}
+
 /* Neutralize any legacy bg-white or table-light classes */
 .dashboard-page .bg-white,
 .dashboard-page .table-light {
@@ -627,8 +687,8 @@
    ========================================================================== */
 .dashboard-page .funnel-grid {
   display: grid;
-  grid-template-columns: 7fr 5fr;
-  gap: 1rem;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 1.25rem;
   align-items: center;
 }
 
@@ -639,6 +699,7 @@
 @media (max-width: 991.98px) {
   .dashboard-page .funnel-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 }
 
