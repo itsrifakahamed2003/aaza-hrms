@@ -43,26 +43,12 @@ $logoPath = file_exists(__DIR__ . '/../assets/img/aaza-logo-transparent.png')
     : 'assets/img/aaza-logo.png';
 ?>
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
     <title>Sign In | <?= e(APP_NAME) ?></title>
-    <!-- Prevent theme flash -->
-    <script>
-    (function() {
-        try {
-            var stored = localStorage.getItem('aaza-theme');
-            var theme = stored;
-            if (!theme || theme === 'auto') {
-                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
-            document.documentElement.setAttribute('data-bs-theme', theme);
-        } catch (e) {
-            document.documentElement.setAttribute('data-bs-theme', 'light');
-        }
-    })();
-    </script>
     <link rel="stylesheet" href="<?= e(url('assets/vendor/inter/inter.css')) ?>">
     <link rel="stylesheet" href="<?= e(url('assets/vendor/bootstrap/bootstrap.min.css')) ?>">
     <link rel="stylesheet" href="<?= e(url('assets/vendor/bootstrap-icons/bootstrap-icons.min.css')) ?>">
@@ -179,19 +165,6 @@ $logoPath = file_exists(__DIR__ . '/../assets/img/aaza-logo-transparent.png')
             <span>&copy; <?= date('Y') ?> AaZa Group</span>
         </footer>
     </main>
-
-    <!-- Floating Theme Toggle in Fixed Top-Right Corner (tab order is LAST) -->
-    <button
-        type="button"
-        class="theme-toggle-fixed"
-        id="themeToggleBtn"
-        aria-label="Switch to dark mode"
-        title="Switch to dark mode"
-        aria-pressed="false"
-        tabindex="0"
-    >
-        <i class="bi bi-moon-stars" aria-hidden="true"></i>
-    </button>
 
     <script src="<?= e(url('assets/vendor/bootstrap/bootstrap.bundle.min.js')) ?>"></script>
     <script src="<?= e(url('assets/js/login.js')) ?>"></script>

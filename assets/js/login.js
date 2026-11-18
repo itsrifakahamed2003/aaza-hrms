@@ -1,9 +1,8 @@
 /**
  * AaZa HRMS - Login Interactive Controller
- * Theme Toggle • Password Visibility • Caps Lock Indicator • Submit Guard
+ * Password Visibility • Caps Lock Indicator • Submit Guard
  */
 document.addEventListener('DOMContentLoaded', function () {
-    initThemeToggle();
     initPasswordToggle();
     initCapsLockHint();
     initFormSubmitLoading();
@@ -19,71 +18,7 @@ window.addEventListener('pageshow', function () {
 });
 
 /**
- * 1. Fixed Theme Toggle Controller
- */
-function initThemeToggle() {
-    const btn = document.getElementById('themeToggleBtn');
-    const htmlEl = document.documentElement;
-    if (!btn) return;
-
-    function getStoredTheme() {
-        try {
-            return localStorage.getItem('aaza-theme') || 'auto';
-        } catch (e) {
-            return 'auto';
-        }
-    }
-
-    function getEffectiveTheme(stored) {
-        if (!stored || stored === 'auto') {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        return stored;
-    }
-
-    function updateButton(effective) {
-        const isDark = (effective === 'dark');
-        btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-        const newLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode';
-        btn.setAttribute('title', newLabel);
-        btn.setAttribute('aria-label', newLabel);
-
-        const icon = btn.querySelector('i');
-        if (icon) {
-            icon.style.opacity = '0';
-            icon.style.transform = 'rotate(25deg) scale(0.85)';
-            setTimeout(function () {
-                icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
-                icon.style.opacity = '1';
-                icon.style.transform = 'rotate(0deg) scale(1)';
-            }, 100);
-        }
-    }
-
-    btn.addEventListener('click', function () {
-        const current = htmlEl.getAttribute('data-bs-theme') || 'light';
-        const next = current === 'dark' ? 'light' : 'dark';
-        try {
-            localStorage.setItem('aaza-theme', next);
-        } catch (e) {}
-        htmlEl.setAttribute('data-bs-theme', next);
-        updateButton(next);
-    });
-
-    // React live to OS theme change when no explicit choice stored
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-        if (getStoredTheme() === 'auto') {
-            const next = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            htmlEl.setAttribute('data-bs-theme', next);
-            updateButton(next);
-        }
-    });
-
-    updateButton(htmlEl.getAttribute('data-bs-theme') || 'light');
-}
-
-/**
- * 2. Password Visibility Toggle
+ * 1. Password Visibility Toggle
  */
 function initPasswordToggle() {
     const toggleBtn = document.getElementById('passwordToggleBtn');
@@ -109,7 +44,7 @@ function initPasswordToggle() {
 }
 
 /**
- * 3. Caps Lock Indicator
+ * 2. Caps Lock Indicator
  */
 function initCapsLockHint() {
     const passwordInput = document.getElementById('password');
@@ -132,7 +67,7 @@ function initCapsLockHint() {
 }
 
 /**
- * 4. Submit Loading State & Double-Click Guard
+ * 3. Submit Loading State & Double-Click Guard
  */
 function initFormSubmitLoading() {
     const loginForm = document.getElementById('loginForm');
