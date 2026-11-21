@@ -1107,12 +1107,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Helper to calculate clean tick headroom (+15% or at least +1)
+    function computeHeadroomMax(maxVal) {
+        const v = Number(maxVal) || 0;
+        if (v <= 0) return 5;
+        const minTarget = Math.max(v * 1.15, v + 1);
+        if (minTarget <= 3) return Math.ceil(minTarget);
+        if (minTarget <= 6) return Math.ceil(minTarget);
+        if (minTarget <= 15) {
+            const m2 = Math.ceil(minTarget / 2) * 2;
+            const m5 = Math.ceil(minTarget / 5) * 5;
+            return (m2 >= minTarget && m2 - minTarget <= 1) ? m2 : m5;
+        }
+        if (minTarget <= 50) return Math.ceil(minTarget / 5) * 5;
+        if (minTarget <= 100) return Math.ceil(minTarget / 10) * 10;
+        if (minTarget <= 500) return Math.ceil(minTarget / 25) * 25;
+        const factor = Math.pow(10, Math.floor(Math.log10(minTarget)) - 1);
+        return Math.ceil(minTarget / factor) * factor;
+    }
+
     // Custom Plugin 1: Bar Value Labels
     const barValueLabelsPlugin = {
         id: 'barValueLabels',
         afterDatasetsDraw(chart) {
             if (chart.config.type !== 'bar') return;
             const ctx = chart.ctx;
+            const { chartArea } = chart;
+            if (!chartArea) return;
             const isHorizontal = chart.config.options?.indexAxis === 'y';
             const colors = getThemeColors();
 
@@ -1135,13 +1156,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         text = `${val} (${pct}%)`;
                     }
                     if (isHorizontal) {
+                        const textMetrics = ctx.measureText(text);
+                        const textWidth = textMetrics.width;
+                        let xPos = element.x + 4; // anchor end, align end, offset 4
+                        let yPos = element.y;
+
+                        // Clamp inside chart area if it would go outside
+                        if (xPos + textWidth > chartArea.right) {
+                            xPos = chartArea.right - textWidth - 2;
+                        }
+
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(text, element.x + 6, element.y);
+                        ctx.fillText(text, xPos, yPos);
                     } else {
+                        const fontSize = 11.5;
+                        let xPos = element.x;
+                        let yPos = element.y - 4; // anchor end, align end, offset 4
+
+                        // Clamp inside chart area if it would go out of plot area
+                        if (yPos - fontSize < chartArea.top) {
+                            yPos = chartArea.top + fontSize + 1;
+                        }
+
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'bottom';
-                        ctx.fillText(text, element.x, element.y - 3);
+                        ctx.fillText(text, xPos, yPos);
                     }
                 });
             });
@@ -1291,11 +1331,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const config = JSON.parse(raw);
         const colors = getThemeColors();
 
+        let maxVal = 0;
         const datasets = (config.datasets || []).map(ds => {
             let bg = colors.primary;
             if (ds.paletteKey === 'third') bg = colors.thirdTone;
             else if (ds.paletteKey === 'secondary') bg = colors.secondarySlate;
             else if (ds.paletteKey === 'fourth') bg = colors.fourthColor;
+            (ds.data || []).forEach(v => {
+                const n = Number(v) || 0;
+                if (n > maxVal) maxVal = n;
+            });
             return {
                 ...ds,
                 backgroundColor: bg
@@ -1311,13 +1356,19 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 28
+                    }
+                },
                 plugins: {
                     legend: {
                         position: 'top',
-                        align: 'center',
+                        align: 'end',
                         labels: {
                             boxWidth: 12,
-                            padding: 12,
+                            boxHeight: 12,
+                            padding: 14,
                             color: colors.textColor,
                             font: { family: 'Inter', size: 12 }
                         }
@@ -1330,6 +1381,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     y: {
                         beginAtZero: true,
+                        suggestedMax: computeHeadroomMax(maxVal),
                         grid: { color: colors.gridColor },
                         ticks: {
                             precision: 0,
@@ -1350,6 +1402,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const config = JSON.parse(raw);
         const colors = getThemeColors();
 
+        let maxVal = 0;
+        (config.datasets || []).forEach(ds => {
+            (ds.data || []).forEach(v => {
+                const n = Number(v) || 0;
+                if (n > maxVal) maxVal = n;
+            });
+        });
+
         chartInstances['chartMonthlyHiring'] = new Chart(el, {
             type: 'line',
             data: {
@@ -1359,6 +1419,11 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 28
+                    }
+                },
                 interaction: {
                     mode: 'index',
                     intersect: false
@@ -1400,7 +1465,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     y: {
                         beginAtZero: true,
-                        grace: '18%',
+                        suggestedMax: computeHeadroomMax(maxVal),
                         grid: { color: colors.gridColor, drawBorder: false },
                         ticks: {
                             precision: 0,
@@ -1422,6 +1487,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const config = JSON.parse(raw);
         const colors = getThemeColors();
 
+        let maxVal = 0;
+        (config.datasets || []).forEach(ds => {
+            (ds.data || []).forEach(v => {
+                const n = Number(v) || 0;
+                if (n > maxVal) maxVal = n;
+            });
+        });
+
         chartInstances['chartMonthlyJoining'] = new Chart(el, {
             type: 'bar',
             data: {
@@ -1431,6 +1504,11 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 28
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1459,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     y: {
                         beginAtZero: true,
-                        grace: '18%',
+                        suggestedMax: computeHeadroomMax(maxVal),
                         grid: { color: colors.gridColor, drawBorder: false },
                         ticks: {
                             precision: 0,
@@ -1491,8 +1569,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
 
         const funnelData = config.datasets[0]?.data || [];
-        const maxVal = Math.max(...funnelData, 1);
-        const dynamicXMax = Math.max(Math.ceil(maxVal * 1.38 / 5) * 5, 5);
+        const maxVal = Math.max(...funnelData, 0);
+        const dynamicXMax = Math.max(computeHeadroomMax(maxVal), Math.ceil(maxVal * 1.25));
 
         chartInstances['chartRecruitmentFunnel'] = new Chart(el, {
             type: 'bar',
@@ -1519,13 +1597,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 12,
+                        right: 12
+                    }
+                },
                 plugins: {
                     legend: { display: false }
                 },
                 scales: {
                     x: {
                         beginAtZero: true,
-                        max: dynamicXMax,
+                        suggestedMax: dynamicXMax,
                         grid: { color: colors.gridColor, drawBorder: false },
                         ticks: {
                             precision: 0,
