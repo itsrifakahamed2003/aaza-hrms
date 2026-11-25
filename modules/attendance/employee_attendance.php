@@ -229,7 +229,8 @@ require_once __DIR__ . '/../../includes/header.php';
             <form method="get" action="<?= e(url('modules/attendance/employee_attendance.php')) ?>" class="d-flex align-items-center gap-2">
                 <label class="form-label mb-0 fw-semibold text-secondary small">Month:</label>
                 <input type="month" name="month" class="form-control form-control-sm" value="<?= e($selectedMonth) ?>" onchange="this.form.submit()">
-                <button type="submit" class="btn btn-sm btn-outline-primary">View</button>
+                <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap flex-shrink-0"
+            style="white-space:nowrap; min-width:64px;">View</button>
             </form>
             <div class="small text-muted">
                 Total Tracked Work Hours: <span class="fw-bold font-monospace text-body"><?= number_format($totalHours, 1) ?> hrs</span>
